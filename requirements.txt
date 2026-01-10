@@ -4,4 +4,4 @@ pandas_ta
 quantstats
 vectorbt
 plotly
-openbb
+openbb-terminal
