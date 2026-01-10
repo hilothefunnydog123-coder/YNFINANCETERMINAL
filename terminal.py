@@ -1,5 +1,5 @@
 import streamlit as st
-from openbb import obb
+from openbb_terminal.sdk import openbb as obb
 import vectorbt as vbt
 import pandas as pd
 
