@@ -1,58 +1,62 @@
 import streamlit as st
-from openbb_terminal.sdk import openbb as obb
+import yfinance as yf
+import pandas_ta as ta
 import vectorbt as vbt
-import pandas as pd
+import plotly.graph_objects as go
 
-# Terminal Aesthetics
-st.set_page_config(layout="wide", page_title="BB-VBT QUANT TERMINAL")
-st.title("🏛️ YNFINANCE INSIDER TERMINAL")
+# 1. THE LOOK: Bloomberg Dark Mode
+st.set_page_config(layout="wide", page_title="BB-LIGHT TERMINAL")
+st.markdown("""
+    <style>
+    .stApp { background-color: #000000; color: #00ff41; }
+    [data-testid="stSidebar"] { background-color: #111; border-right: 1px solid #333; }
+    h1, h2, h3 { color: #00ff41 !important; font-family: 'Courier New', monospace; }
+    </style>
+    """, unsafe_allow_all_html=True)
 
-# 1. DATA INPUT (The OpenBB Part)
+st.title("📟 QUANT-TERMINAL // CLOUD_v1")
+
+# 2. SIDEBAR COMMANDS
 with st.sidebar:
-    ticker = st.text_input("SYMBOL", value="NVDA")
-    provider = st.selectbox("DATA PROVIDER", ["yfinance", "fmp", "polygon"])
-    fast_ma_val = st.slider("Fast MA", 5, 50, 20)
-    slow_ma_val = st.slider("Slow MA", 20, 200, 50)
+    st.header("EXECUTION CTRL")
+    ticker = st.text_input("SYMBOL", value="BTC-USD").upper()
+    fast_ma = st.slider("FAST WINDOW", 5, 50, 20)
+    slow_ma = st.slider("SLOW WINDOW", 20, 200, 50)
+    st.markdown("---")
+    st.info("Status: CLOUD_READY_STABLE")
 
-# Fetching data using the new OpenBB OBBject
+# 3. FAST DATA ENGINE
 @st.cache_data
-def fetch_institutional_data(symbol, prov):
-    # This replaces the old yfinance.download
-    res = obb.equity.price.historical(symbol=symbol, provider=prov)
-    df = res.to_dataframe()
+def load_data(symbol):
+    df = yf.download(symbol, period="5y")
+    df['RSI'] = ta.rsi(df['Close'], length=14)
     return df
 
 try:
-    data = fetch_institutional_data(ticker, provider)
-    close_price = data['close']
-
-    # 2. THE QUANT ENGINE (The VectorBT Part)
-    # This runs the math on the entire price series at once (no loops)
-    fast_ma = vbt.MA.run(close_price, fast_ma_val)
-    slow_ma = vbt.MA.run(close_price, slow_ma_val)
+    data = load_data(ticker)
     
-    entries = fast_ma.ma_crossed_above(slow_ma)
-    exits = fast_ma.ma_crossed_below(slow_ma)
+    # 4. DASHBOARD METRICS
+    c1, c2, c3 = st.columns(3)
+    c1.metric("PRICE", f"${data['Close'].iloc[-1]:,.2f}")
+    c2.metric("RSI (14)", f"{data['RSI'].iloc[-1]:.2f}")
+    c3.metric("52W HIGH", f"${data['High'].max():,.2f}")
 
-    # Simulation with $10k, 0.1% fees (realistic)
-    pf = vbt.Portfolio.from_signals(close_price, entries, exits, init_cash=10000, fees=0.001)
-
-    # 3. DISPLAY THE DATA
-    col1, col2 = st.columns([1, 2])
+    # 5. THE BACKTEST (VectorBT)
+    # This is the "Cheat Code" math that runs instantly
+    close = data['Close']
+    fast_m = vbt.MA.run(close, fast_ma)
+    slow_m = vbt.MA.run(close, slow_ma)
+    entries = fast_m.ma_crossed_above(slow_m)
+    exits = fast_m.ma_crossed_below(slow_m)
     
-    with col1:
-        st.subheader("📊 Quant Stats")
-        st.dataframe(pf.stats(), height=400)
+    pf = vbt.Portfolio.from_signals(close, entries, exits, init_cash=10000)
 
-    with col2:
-        st.subheader("📈 Cumulative Returns")
-        st.plotly_chart(pf.plot(), use_container_width=True)
-
-    # 4. OPENBB FUNDAMENTALS (The "Cheat Code" Data)
-    st.markdown("---")
-    st.header("🔍 Institutional Insider Trading (via OpenBB)")
-    insider = obb.equity.fundamental.insider_trading(symbol=ticker, provider="fmp").to_dataframe()
-    st.table(insider.head(10))
+    # 6. VISUALIZATION
+    st.subheader("STRATEGY EQUITY CURVE")
+    st.plotly_chart(pf.plot(), use_container_width=True)
+    
+    st.subheader("INSTITUTIONAL PERFORMANCE STATS")
+    st.table(pf.stats())
 
 except Exception as e:
-    st.error(f"Waiting for command... Error: {e}")
+    st.error(f"Waiting for Valid Ticker... (Error: {e})")
