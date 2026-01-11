@@ -11,7 +11,7 @@ import google.generativeai as genai
 GEMINI_API_KEY = "AIzaSyAkGNUAYZXnPD83MFq2SAFqzq_fmNWCIqI"
 
 # --- 1. MAJESTIC UI & DYNAMIC TICKER ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_V38_STABLE", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="SOVEREIGN_V39_STABLE", initial_sidebar_state="collapsed")
 
 if 'ticker' not in st.session_state: st.session_state.ticker = "NVDA"
 if 'active_layers' not in st.session_state: st.session_state.active_layers = ["EMA"]
@@ -55,7 +55,6 @@ def fetch_master_data(ticker):
     df['EMA20'] = ta.ema(df['Close'], length=20)
     df['EMA50'] = ta.ema(df['Close'], length=50)
     df['RSI'] = ta.rsi(df['Close'], length=14)
-    # Filter news objects to ensure titles exist
     news = [n for n in s.news if 'title' in n] if s.news else []
     return df, s.info, s.quarterly_financials, s.options, news
 
@@ -96,7 +95,6 @@ try:
             st.plotly_chart(fig, use_container_width=True)
 
         with tabs[1]:
-            # Gamma Wall logic
             if opt_dates:
                 chain = yf.Ticker(st.session_state.ticker).option_chain(opt_dates[0])
                 gex_fig = go.Figure()
@@ -104,46 +102,51 @@ try:
                 gex_fig.add_trace(go.Bar(x=chain.puts['strike'], y=-chain.puts['openInterest'], name="Puts", marker_color='#ff00ff'))
                 gex_fig.update_layout(barmode='relative', template="plotly_dark", title="Gamma Exposure Profile")
                 st.plotly_chart(gex_fig, use_container_width=True)
-                
+
         with tabs[2]:
-            st.subheader("// OPTIONS_CHAIN_LOCKED")
             if opt_dates:
-                # Fixed: Pulling chain for the nearest available expiry
                 chain = yf.Ticker(st.session_state.ticker).option_chain(opt_dates[0])
                 st.dataframe(chain.calls, use_container_width=True, height=600)
             else:
                 st.info("NO_DERIVATIVES_DATA_FOUND")
 
         with tabs[3]:
-            # Locked Financials Logic
+            # --- FIXED FINANCIALS CHART ---
+            st.subheader("// QUARTERLY_REVENUE_MATRIX")
             if financials is not None and not financials.empty:
-                rev_fig = go.Figure(data=[go.Bar(x=financials.columns, y=financials.iloc[0], marker_color='#00ff41')])
-                rev_fig.update_layout(template="plotly_dark", title="Quarterly Revenue Matrix")
-                st.plotly_chart(rev_fig, use_container_width=True)
-                st.dataframe(financials, use_container_width=True)
+                # Dynamic row discovery to fix blank charts
+                rev_keys = ['Total Revenue', 'Operating Revenue', 'Revenue', 'TotalRevenue']
+                found_key = next((k for k in rev_keys if k in financials.index), None)
                 
+                if found_key:
+                    rev_fig = go.Figure(data=[go.Bar(x=financials.columns, y=financials.loc[found_key], marker_color='#00ff41')])
+                    rev_fig.update_layout(template="plotly_dark", title=f"Quarterly {found_key} Analysis")
+                    st.plotly_chart(rev_fig, use_container_width=True)
+                    
+                else:
+                    st.warning("REVENUE_KEY_NOT_FOUND: DISPLAYING_RAW_TABLE")
+                
+                st.dataframe(financials, use_container_width=True)
+            else:
+                st.info("FINANCIAL_DATA_OFFLINE")
+
         with tabs[4]:
-            # --- AI GHOSTWRITER FIXED (Clean HTML Rendering) ---
             ai_story = ""
             if GEMINI_API_KEY:
                 try:
                     genai.configure(api_key=GEMINI_API_KEY)
-                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                    target_model = available_models[0] if available_models else "gemini-1.5-flash"
+                    models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    target_model = models[0] if models else "gemini-1.5-flash"
                     model_engine = genai.GenerativeModel(target_model)
-                    
-                    # Ingest real headlines
                     h_list = "\n".join([f"- {n['title']}" for n in live_news[:5]]) if live_news else "Tape silent."
                     prompt = (f"Write a snarky, humorous institutional Wall Street newspaper article for {st.session_state.ticker}. "
                               f"Data: Price ${df['Close'].iloc[-1]:.2f}, RSI {df['RSI'].iloc[-1]:.1f}. "
                               f"Headlines: {h_list}. Use financial slang and mention 'retail bagholders'.")
-                    
                     response = model_engine.generate_content(prompt)
-                    ai_story = response.text.replace("*", "").replace("#", "") # Clean AI markdown artifacts
+                    ai_story = response.text.replace("*", "").replace("#", "")
                 except Exception as e:
                     ai_story = f"SYSTEM_ERROR: The Ghostwriter was detained by the SEC. ({e})"
             
-            # Rendering Gazette as a single cohesive block
             newspaper_html = f"""
             <div class="gazette-body">
                 <div class="gazette-title">The {st.session_state.ticker} Global Gazette</div>
