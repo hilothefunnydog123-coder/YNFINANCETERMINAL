@@ -5,3 +5,4 @@ vectorbt
 plotly
 pandas
 anywidget
+google-generativeai
