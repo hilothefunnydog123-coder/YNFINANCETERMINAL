@@ -11,7 +11,7 @@ import google.generativeai as genai
 GEMINI_API_KEY = "AIzaSyAkGNUAYZXnPD83MFq2SAFqzq_fmNWCIqI"
 
 # --- 1. MAJESTIC NEON UI OVERHAUL ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_V33_STABLE", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="SOVEREIGN_V34_ULTRA", initial_sidebar_state="collapsed")
 
 tickers = ["NVDA", "BTC-USD", "AAPL", "ETH-USD", "TSLA", "AMZN", "MSFT", "META", "GOOGL", "SOL-USD", "SPY", "QQQ", "GLD", "VIX", "GC=F", "USO", "PLTR", "AMD"]
 ticker_html = "".join([f"<span style='color:{'#00ff41' if i%2==0 else '#ff00ff'}; padding-right:100px;'>{t}: LIVE_WIRE</span>" for i, t in enumerate(tickers)])
@@ -28,7 +28,6 @@ st.markdown(f"""
     .stButton>button:hover {{ background: #00ff41; color: #000; box-shadow: 0 0 40px #00ff41; transform: scale(1.05); }}
     .gazette-body {{ border: 8px double #00ff41; padding: 60px; background: #000; color: #00ff41; margin-top: 30px; box-shadow: 0 0 60px rgba(0,255,65,0.15); }}
     .gazette-title {{ font-family: 'Orbitron', sans-serif; font-size: 90px; font-weight: 900; border-bottom: 10px solid #00ff41; text-align: center; text-transform: uppercase; letter-spacing: -6px; line-height: 0.85; padding-bottom: 15px; text-shadow: 0 0 20px #00ff41; }}
-    .gazette-sub {{ border-bottom: 4px solid #00ff41; text-align: center; padding: 18px; font-weight: bold; margin-bottom: 45px; display: flex; justify-content: space-between; font-size: 20px; }}
     .column-wrapper {{ column-count: 2; column-gap: 70px; text-align: justify; line-height: 1.9; font-size: 17px; }}
     .dropcap {{ float: left; font-size: 95px; line-height: 75px; padding-top: 5px; padding-right: 15px; font-weight: bold; color: #00ff41; text-shadow: 4px 4px #000; }}
     </style>
@@ -83,52 +82,50 @@ try:
             fig = make_subplots(rows=rows, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3] if rows==2 else [1.0])
             fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close']), row=1, col=1)
             if "EMA" in st.session_state.active_layers:
-                fig.add_trace(go.Scatter(x=df.index, y=df['EMA20'], name="EMA20", line=dict(color="#00ff41")))
-                fig.add_trace(go.Scatter(x=df.index, y=df['EMA50'], name="EMA50", line=dict(color="#ff00ff")))
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA20'], name="EMA20", line=dict(color="#00ff41", width=1.5)), row=1, col=1)
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA50'], name="EMA50", line=dict(color="#ff00ff", width=1.5)), row=1, col=1)
             fig.update_layout(template="plotly_dark", height=750, paper_bgcolor='black', plot_bgcolor='black', xaxis_rangeslider_visible=False)
             st.plotly_chart(fig, use_container_width=True)
 
         with tabs[1]:
+            # Gamma Exposure Visualization
             if opt_dates:
                 chain = yf.Ticker(st.session_state.ticker).option_chain(opt_dates[0])
                 gex_fig = go.Figure()
-                gex_fig.add_trace(go.Bar(x=chain.calls['strike'], y=chain.calls['openInterest'], name="Call OI", marker_color='#00ff41'))
-                gex_fig.add_trace(go.Bar(x=chain.puts['strike'], y=-chain.puts['openInterest'], name="Put OI", marker_color='#ff00ff'))
-                gex_fig.update_layout(barmode='relative', template="plotly_dark", title="Gamma Exposure Profile")
+                gex_fig.add_trace(go.Bar(x=chain.calls['strike'], y=chain.calls['openInterest'], name="Call Wall", marker_color='#00ff41'))
+                gex_fig.add_trace(go.Bar(x=chain.puts['strike'], y=-chain.puts['openInterest'], name="Put Wall", marker_color='#ff00ff'))
+                gex_fig.update_layout(barmode='relative', template="plotly_dark", title="Gamma Exposure Matrix")
                 st.plotly_chart(gex_fig, use_container_width=True)
+                
 
         with tabs[4]:
-            # --- UPDATED STABLE MODEL IDENTIFIER ---
+            # --- THE ADAPTIVE GHOSTWRITER (Auto-Fallback) ---
+            ai_story = ""
             if GEMINI_API_KEY:
                 genai.configure(api_key=GEMINI_API_KEY)
-                # Using the more universal model identifier
-                model = genai.GenerativeModel('gemini-1.5-flash') 
+                headlines = "\n".join([f"- {n['title']}" for n in live_news[:5]]) if live_news else "Quiet tape."
+                prompt = (f"Write a snarky, 200-word Wall Street journal front page for {st.session_state.ticker}. "
+                          f"Data: ${df['Close'].iloc[-1]:.2f}, RSI: {df['RSI'].iloc[-1]:.1f}. "
+                          f"Headlines: {headlines}. Use institutional slang.")
                 
-                headlines = "\n".join([f"- {n['title']}" for n in live_news[:5]]) if live_news else "No news available."
-                prompt = (f"Act as a snarky, humorous institutional Wall Street writer for 'The Sovereign Gazette'. "
-                          f"Write a 200-word newspaper front page report about {st.session_state.ticker}. "
-                          f"Ticker Data: Price ${df['Close'].iloc[-1]:.2f}, RSI {df['RSI'].iloc[-1]:.1f}. "
-                          f"Include these real headlines from the wire: {headlines}. "
-                          f"Use snarky financial slang, mention 'retail bagholders', and keep the majesty high.")
+                # Model Fallback Loop
+                for model_name in ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']:
+                    try:
+                        model = genai.GenerativeModel(model_name)
+                        response = model.generate_content(prompt)
+                        ai_story = response.text
+                        if ai_story: break
+                    except:
+                        continue
                 
-                try:
-                    response = model.generate_content(prompt)
-                    ai_story = response.text
-                except Exception as e:
-                    ai_story = f"SYSTEM_ERROR: The Ghostwriter was detained by the SEC. ({e})"
-            else:
-                ai_story = "ERROR: API KEY NOT FOUND."
-
+                if not ai_story:
+                    ai_story = "SYSTEM_ERROR: The Ghostwriter is currently being interrogated by the SEC. All models unresponsive."
+            
             st.markdown(f"""
                 <div class="gazette-body">
                     <div class="gazette-title">The Sovereign {st.session_state.ticker} Gazette</div>
-                    <div class="gazette-sub">
-                        <span>INDEX_PRICE: ${df['Close'].iloc[-1]:.2f}</span>
-                        <span>{datetime.now().strftime('%B %d, %Y')}</span>
-                        <span>SENTIMENT: GEMINI_SENTIENT</span>
-                    </div>
                     <div class="column-wrapper">
-                        <p><span class="dropcap">{ai_story[0] if ai_story else 'T'}</span>{ai_story[1:] if ai_story else 'The wires are cold.'}</p>
+                        <p><span class="dropcap">{ai_story[0] if ai_story else 'T'}</span>{ai_story[1:] if ai_story else 'Silent wires.'}</p>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
