@@ -11,7 +11,7 @@ import google.generativeai as genai
 GEMINI_API_KEY = "AIzaSyAkGNUAYZXnPD83MFq2SAFqzq_fmNWCIqI"
 
 # --- 1. MAJESTIC NEON UI OVERHAUL ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_V34_ULTRA", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="SOVEREIGN_V35_SENTIENT", initial_sidebar_state="collapsed")
 
 tickers = ["NVDA", "BTC-USD", "AAPL", "ETH-USD", "TSLA", "AMZN", "MSFT", "META", "GOOGL", "SOL-USD", "SPY", "QQQ", "GLD", "VIX", "GC=F", "USO", "PLTR", "AMD"]
 ticker_html = "".join([f"<span style='color:{'#00ff41' if i%2==0 else '#ff00ff'}; padding-right:100px;'>{t}: LIVE_WIRE</span>" for i, t in enumerate(tickers)])
@@ -99,27 +99,25 @@ try:
                 
 
         with tabs[4]:
-            # --- THE ADAPTIVE GHOSTWRITER (Auto-Fallback) ---
+            # --- THE AUTONOMOUS MODEL DISCOVERY ENGINE ---
             ai_story = ""
             if GEMINI_API_KEY:
-                genai.configure(api_key=GEMINI_API_KEY)
-                headlines = "\n".join([f"- {n['title']}" for n in live_news[:5]]) if live_news else "Quiet tape."
-                prompt = (f"Write a snarky, 200-word Wall Street journal front page for {st.session_state.ticker}. "
-                          f"Data: ${df['Close'].iloc[-1]:.2f}, RSI: {df['RSI'].iloc[-1]:.1f}. "
-                          f"Headlines: {headlines}. Use institutional slang.")
-                
-                # Model Fallback Loop
-                for model_name in ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']:
-                    try:
-                        model = genai.GenerativeModel(model_name)
-                        response = model.generate_content(prompt)
-                        ai_story = response.text
-                        if ai_story: break
-                    except:
-                        continue
-                
-                if not ai_story:
-                    ai_story = "SYSTEM_ERROR: The Ghostwriter is currently being interrogated by the SEC. All models unresponsive."
+                try:
+                    genai.configure(api_key=GEMINI_API_KEY)
+                    # Automatically find the best available model for your key
+                    models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    active_model = models[0] if models else "models/gemini-1.5-flash"
+                    
+                    model_engine = genai.GenerativeModel(active_model)
+                    headlines = "\n".join([f"- {n['title']}" for n in live_news[:5]]) if live_news else "Quiet tape."
+                    prompt = (f"Write a snarky, humorous 200-word news report for {st.session_state.ticker}. "
+                              f"Current Price: ${df['Close'].iloc[-1]:.2f}, RSI: {df['RSI'].iloc[-1]:.1f}. "
+                              f"Headline context: {headlines}. Mention 'retail bagholders' and use floor trader slang.")
+                    
+                    response = model_engine.generate_content(prompt)
+                    ai_story = response.text
+                except Exception as e:
+                    ai_story = f"SYSTEM_ERROR: The Ghostwriter is under SEC investigation. Models found: {models if 'models' in locals() else 'None'}. Error: {e}"
             
             st.markdown(f"""
                 <div class="gazette-body">
