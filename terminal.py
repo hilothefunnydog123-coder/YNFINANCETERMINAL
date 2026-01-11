@@ -7,13 +7,17 @@ import pandas as pd
 from datetime import datetime
 import google.generativeai as genai 
 
-# --- 1. MAJESTIC UI & DYNAMIC TICKER ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_V41_SECURE", initial_sidebar_state="collapsed")
+# --- 0. MASTER KEY LOCK (OPTION 2: HARDCODED) ---
+# Replace the string below with your actual fresh API key
+GEMINI_API_KEY = "AIzaSyA0ob-XPm7DqZdEwcNTfORtYJHGuER5fXc"
+
+# --- 1. MAJESTIC NEON UI & DYNAMIC TICKER ---
+st.set_page_config(layout="wide", page_title="SOVEREIGN_V42_APEX", initial_sidebar_state="collapsed")
 
 if 'ticker' not in st.session_state: st.session_state.ticker = "NVDA"
 if 'active_layers' not in st.session_state: st.session_state.active_layers = ["EMA"]
-if 'api_key' not in st.session_state: st.session_state.api_key = ""
 
+# Professional Asset Rotation
 tickers_list = ["NVDA", "BTC-USD", "AAPL", "ETH-USD", "TSLA", "AMZN", "MSFT", "META", "GOOGL", "SOL-USD", "SPY", "QQQ", "GLD", "VIX", "GC=F", "USO"]
 
 @st.cache_data(ttl=60)
@@ -36,10 +40,11 @@ st.markdown(f"""
     @keyframes marquee {{ 0% {{ transform: translateX(100%); }} 100% {{ transform: translateX(-100%); }} }}
     .led-ticker {{ background: rgba(0,0,0,0.95); border-bottom: 2px solid #00ff41; padding: 22px; overflow: hidden; white-space: nowrap; width: 100%; font-weight: bold; font-size: 28px; font-family: 'Orbitron', sans-serif; }}
     .led-ticker div {{ display: inline-block; animation: marquee 45s linear infinite; }}
+    [data-testid="stMetric"] {{ background: rgba(0, 255, 65, 0.05); border-left: 5px solid #00ff41; border-radius: 4px; padding: 15px !important; box-shadow: 10px 10px 20px rgba(0,0,0,0.8); }}
+    .stButton>button {{ background: linear-gradient(90deg, #001a00 0%, #004d00 100%); color: #00ff41; border: 1px solid #00ff41; border-radius: 0px; font-family: 'Orbitron'; font-size: 11px; }}
     .gazette-body {{ border: 8px double #00ff41; padding: 60px; background: #000; color: #00ff41; margin-top: 30px; box-shadow: 0 0 50px rgba(0,255,65,0.2); }}
     .gazette-title {{ font-family: 'Orbitron', sans-serif; font-size: 80px; text-align: center; text-transform: uppercase; border-bottom: 10px solid #00ff41; padding-bottom: 10px; line-height: 0.9; }}
-    .gazette-sub {{ border-bottom: 3px solid #00ff41; display: flex; justify-content: space-between; padding: 10px 0; margin-bottom: 30px; font-weight: bold; font-size: 18px; }}
-    .column-wrapper {{ column-count: 2; column-gap: 50px; text-align: justify; line-height: 1.8; }}
+    .column-wrapper {{ column-count: 2; column-gap: 50px; text-align: justify; line-height: 1.8; font-size: 17px; }}
     .dropcap {{ float: left; font-size: 85px; line-height: 65px; padding-right: 15px; font-weight: bold; color: #00ff41; }}
     </style>
     <div class="led-ticker"><div>{ticker_content} | {ticker_content}</div></div>
@@ -65,8 +70,7 @@ try:
         st.metric("SPOT_PRICE", f"${df['Close'].iloc[-1]:,.2f}")
         st.metric("MOMENTUM_RSI", f"{df['RSI'].iloc[-1]:.1f}")
         st.markdown("---")
-        # SECURE INPUT: Prevents Key Leaking
-        st.session_state.api_key = st.text_input("GEMINI_KEY", type="password", placeholder="Enter New Key...")
+        st.write("🤖 GHOSTWRITER: ACTIVE")
         st.markdown("---")
         if st.button("TOGGLE EMA_CROSS"):
             st.session_state.active_layers.append("EMA") if "EMA" not in st.session_state.active_layers else st.session_state.active_layers.remove("EMA")
@@ -88,12 +92,12 @@ try:
 
         with tabs[0]:
             rows = 2 if "RSI" in st.session_state.active_layers else 1
-            fig = make_subplots(rows=rows, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3] if rows==2 else [1.0], vertical_spacing=0.05)
+            fig = make_subplots(rows=rows, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3] if rows==2 else [1.0])
             fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close']), row=1, col=1)
             if "EMA" in st.session_state.active_layers:
                 fig.add_trace(go.Scatter(x=df.index, y=df['EMA20'], name="EMA20", line=dict(color="#00ff41")))
                 fig.add_trace(go.Scatter(x=df.index, y=df['EMA50'], name="EMA50", line=dict(color="#ff00ff")))
-            fig.update_layout(template="plotly_dark", height=750, xaxis_rangeslider_visible=False, margin=dict(t=0, b=0, l=0, r=0))
+            fig.update_layout(template="plotly_dark", height=750, xaxis_rangeslider_visible=False)
             st.plotly_chart(fig, use_container_width=True)
 
         with tabs[1]:
@@ -111,64 +115,50 @@ try:
                 st.dataframe(chain.calls, use_container_width=True, height=600)
 
         with tabs[3]:
-            # --- FINANCIALS CHART & DEBT/EQUITY ---
+            # Locked Financials & Leverage Overlay
             st.subheader("// FINANCIAL_LEVERAGE_MATRIX")
             if financials is not None and not financials.empty:
-                # Revenue Scanner
                 rev_keys = ['Total Revenue', 'Operating Revenue', 'Revenue', 'TotalRevenue']
                 found_key = next((k for k in rev_keys if k in financials.index), None)
-                
                 if found_key:
                     fin_fig = make_subplots(specs=[[{"secondary_y": True}]])
                     fin_fig.add_trace(go.Bar(x=financials.columns, y=financials.loc[found_key], name="Revenue", marker_color='#00ff41'), secondary_y=False)
-                    
                     # Debt-to-Equity Logic
                     if balance is not None and 'Total Debt' in balance.index and 'Stockholders Equity' in balance.index:
                         de_ratio = balance.loc['Total Debt'] / balance.loc['Stockholders Equity']
                         fin_fig.add_trace(go.Scatter(x=balance.columns, y=de_ratio, name="D/E Ratio", line=dict(color="#ff00ff")), secondary_y=True)
-                        fin_fig.update_yaxes(title_text="Debt/Equity Ratio", secondary_y=True, gridcolor='rgba(255,0,255,0.1)')
-                    
                     fin_fig.update_layout(template="plotly_dark", title=f"Quarterly {found_key} & Leverage Trend")
                     st.plotly_chart(fin_fig, use_container_width=True)
-                    
-                
                 st.dataframe(financials, use_container_width=True)
-            else:
-                st.info("FINANCIAL_DATA_OFFLINE")
 
         with tabs[4]:
+            # --- THE SENTIENT AI GHOSTWRITER (AUTO-DISCOVERY) ---
             ai_story = ""
-            if st.session_state.api_key:
+            if GEMINI_API_KEY != "AIzaSyA0ob-XPm7DqZdEwcNTfORtYJHGuER5fXc":
                 try:
-                    genai.configure(api_key=st.session_state.api_key)
+                    genai.configure(api_key=GEMINI_API_KEY)
                     models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
                     target_model = models[0] if models else "gemini-1.5-flash"
                     model_engine = genai.GenerativeModel(target_model)
                     h_list = "\n".join([f"- {n['title']}" for n in live_news[:5]]) if live_news else "Tape silent."
-                    prompt = (f"Write a snarky, humorous 200-word newspaper front page for {st.session_state.ticker}. "
-                              f"Price ${df['Close'].iloc[-1]:.2f}, RSI {df['RSI'].iloc[-1]:.1f}. "
+                    prompt = (f"Write a snarky institutional report for {st.session_state.ticker}. "
+                              f"Price: ${df['Close'].iloc[-1]:.2f}, RSI: {df['RSI'].iloc[-1]:.1f}. "
                               f"Headlines: {h_list}. Use financial slang.")
                     response = model_engine.generate_content(prompt)
                     ai_story = response.text.replace("*", "").replace("#", "")
                 except Exception as e:
                     ai_story = f"SYSTEM_ERROR: {e}"
             else:
-                ai_story = "ERROR: AUTHORIZATION REQUIRED. Enter a fresh Gemini Key in the HUD."
+                ai_story = "ERROR: API KEY NOT CONFIGURED. Paste key on Line 11 of the source code."
             
-            newspaper_html = f"""
-            <div class="gazette-body">
-                <div class="gazette-title">The {st.session_state.ticker} Global Gazette</div>
-                <div class="gazette-sub">
-                    <span>PRICE: ${df['Close'].iloc[-1]:.2f}</span>
-                    <span>{datetime.now().strftime('%B %d, %Y')}</span>
-                    <span>SENTIMENT: GEMINI_SENTIENT</span>
+            st.markdown(f"""
+                <div class="gazette-body">
+                    <div class="gazette-title">The {st.session_state.ticker} Global Gazette</div>
+                    <div class="column-wrapper">
+                        <p><span class="dropcap">{ai_story[0] if ai_story else 'T'}</span>{ai_story[1:] if ai_story else 'Silent wires.'}</p>
+                    </div>
                 </div>
-                <div class="column-wrapper">
-                    <p><span class="dropcap">{ai_story[0] if ai_story else 'T'}</span>{ai_story[1:] if ai_story else 'The wires are cold.'}</p>
-                </div>
-            </div>
-            """
-            st.markdown(newspaper_html, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
 except Exception as e:
     st.error(f"SYSTEM_HALTED: {e}")
