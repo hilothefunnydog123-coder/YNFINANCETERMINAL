@@ -8,7 +8,7 @@ from datetime import datetime
 import numpy as np
 
 # --- 1. MAJESTIC NEON UI OVERHAUL ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_APEX_V26", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="SOVEREIGN_APEX_V27", initial_sidebar_state="collapsed")
 
 # 40+ Asset Cycle for maximum density
 tickers = ["NVDA", "BTC-USD", "AAPL", "ETH-USD", "TSLA", "AMZN", "MSFT", "META", "GOOGL", "SOL-USD", "SPY", "QQQ", "GLD", "VIX", "GC=F", "USO", "PLTR", "AMD", "EURUSD=X", "JPY=X"]
@@ -30,7 +30,7 @@ st.markdown(f"""
     .stButton>button {{ background: linear-gradient(90deg, #001a00 0%, #004d00 100%); color: #00ff41; border: 1px solid #00ff41; border-radius: 0px; font-family: 'Orbitron'; font-size: 11px; box-shadow: 0 0 10px #00ff41; transition: 0.2s; }}
     .stButton>button:hover {{ background: #00ff41; color: #000; box-shadow: 0 0 40px #00ff41; transform: scale(1.05); }}
     
-    /* The Sovereign Gazette - Physical Print Style */
+    /* The Sovereign Gazette */
     .gazette-body {{ border: 8px double #00ff41; padding: 60px; background: #000; color: #00ff41; margin-top: 30px; box-shadow: 0 0 60px rgba(0,255,65,0.15); }}
     .gazette-title {{ font-family: 'Orbitron', sans-serif; font-size: 90px; font-weight: 900; border-bottom: 10px solid #00ff41; text-align: center; text-transform: uppercase; letter-spacing: -6px; line-height: 0.85; padding-bottom: 15px; text-shadow: 0 0 20px #00ff41; }}
     .gazette-sub {{ border-bottom: 4px solid #00ff41; text-align: center; padding: 18px; font-weight: bold; margin-bottom: 45px; display: flex; justify-content: space-between; font-size: 20px; }}
@@ -99,18 +99,15 @@ try:
             st.plotly_chart(fig, use_container_width=True)
 
         with tabs[1]:
-            # --- NEW TAB: GAMMA EXPOSURE (GEX) PROFILE ---
             st.subheader("// INSTITUTIONAL_GEX_HEDGING_LEVELS")
             if opt_dates:
                 chain = yf.Ticker(st.session_state.ticker).option_chain(opt_dates[0])
                 calls, puts = chain.calls, chain.puts
-                # Visualizing Gamma Wall
                 gex_fig = go.Figure()
                 gex_fig.add_trace(go.Bar(x=calls['strike'], y=calls['openInterest'], name="Call Exposure", marker_color='#00ff41'))
                 gex_fig.add_trace(go.Bar(x=puts['strike'], y=-puts['openInterest'], name="Put Exposure", marker_color='#ff00ff'))
                 gex_fig.update_layout(barmode='relative', title="Gamma Wall Profile (Open Interest Matrix)", template="plotly_dark")
                 st.plotly_chart(gex_fig, use_container_width=True)
-                [Image of an options gamma exposure chart showing call and put walls]
             else:
                 st.info("DERIVATIVES_OFFLINE")
 
@@ -118,7 +115,8 @@ try:
             if opt_dates:
                 chain = yf.Ticker(st.session_state.ticker).option_chain(opt_dates[0])
                 st.dataframe(chain.calls.style.set_properties(**{'background-color': '#050a0f', 'color': '#00ff41', 'border-color': '#00ff41'}), use_container_width=True, height=600)
-                [Image of NVDA option chain showing strike price and implied volatility]
+            else:
+                st.info("NO_DATA")
 
         with tabs[3]:
             if financials is not None and not financials.empty:
@@ -127,14 +125,13 @@ try:
                 fin_fig.update_layout(title=f"QUARTERLY {fin_label} RECURSION", template="plotly_dark", paper_bgcolor='black', plot_bgcolor='black')
                 st.plotly_chart(fin_fig, use_container_width=True)
                 st.dataframe(financials, use_container_width=True)
-                [Image of quarterly revenue bar chart for a technology company]
+            else:
+                st.info("DATA_UNAVAILABLE")
 
         with tabs[4]:
-            # --- THE MAJESTIC SOVEREIGN GAZETTE (LOCKED CONTENT) ---
             rsi = df['RSI'].iloc[-1]
             mood = "FRANTIC GREED" if rsi > 70 else "ABSOLUTE PANIC" if rsi < 30 else "BORING STALEMATE"
             h = [n.get('title', "Tape Grinds Sideways") for n in live_news[:3]] if live_news else ["Silence on the Wires", "Order Flow Flatlines", "No News is Bad News"]
-            
             newspaper_html = f"""
             <div class="gazette-body">
                 <div class="gazette-title">The Sovereign {st.session_state.ticker} Gazette</div>
