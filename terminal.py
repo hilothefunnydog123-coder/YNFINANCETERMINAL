@@ -11,7 +11,7 @@ import google.generativeai as genai
 GEMINI_API_KEY = "AIzaSyAkGNUAYZXnPD83MFq2SAFqzq_fmNWCIqI"
 
 # --- 1. MAJESTIC UI & DYNAMIC TICKER ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_V39_STABLE", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="SOVEREIGN_V40_LOCKED", initial_sidebar_state="collapsed")
 
 if 'ticker' not in st.session_state: st.session_state.ticker = "NVDA"
 if 'active_layers' not in st.session_state: st.session_state.active_layers = ["EMA"]
@@ -111,10 +111,9 @@ try:
                 st.info("NO_DERIVATIVES_DATA_FOUND")
 
         with tabs[3]:
-            # --- FIXED FINANCIALS CHART ---
+            # --- START FIXED FINANCIALS LOGIC ---
             st.subheader("// QUARTERLY_REVENUE_MATRIX")
             if financials is not None and not financials.empty:
-                # Dynamic row discovery to fix blank charts
                 rev_keys = ['Total Revenue', 'Operating Revenue', 'Revenue', 'TotalRevenue']
                 found_key = next((k for k in rev_keys if k in financials.index), None)
                 
@@ -129,6 +128,7 @@ try:
                 st.dataframe(financials, use_container_width=True)
             else:
                 st.info("FINANCIAL_DATA_OFFLINE")
+            # --- END FIXED FINANCIALS LOGIC ---
 
         with tabs[4]:
             ai_story = ""
