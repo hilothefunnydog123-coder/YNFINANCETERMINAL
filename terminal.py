@@ -4,119 +4,117 @@ import pandas_ta as ta
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
+from datetime import datetime
+import time
 
-# --- 1. THE INFINITE LED TICKER (Full Cycle) ---
-# Pulling 20 real assets to ensure a heavy, professional scroll
-ticker_list = ["NVDA", "AAPL", "BTC-USD", "ETH-USD", "TSLA", "AMZN", "META", "GOOGL", "MSFT", "NFLX", "AMD", "PLTR", "SOL-USD", "USO", "GLD", "SPY", "QQQ"]
-ticker_items = []
-for t in ticker_list:
-    # Adding colorful logic: Green for up, Red for down (Simulated for speed)
-    color = "#00ff41" if hash(t) % 2 == 0 else "#ff4b4b"
-    ticker_items.append(f"<span style='color:{color}; padding-right:60px;'>{t}: ${hash(t)%200}.20 (+{hash(t)%5}.1%)</span>")
+# --- 1. GLOBAL UI & REAL-TIME CLOCK ---
+st.set_page_config(layout="wide", page_title="TERMINAL_ULTRA_V11")
+now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-ticker_html = "".join(ticker_items)
-
-st.set_page_config(layout="wide", page_title="PRO_TERMINAL_V10", initial_sidebar_state="collapsed")
-st.html(f"""
+st.markdown(f"""
     <style>
     .stApp {{ background: #000000; color: #00ff41; font-family: 'Courier New', monospace; }}
     @keyframes marquee {{ 0% {{ transform: translateX(100%); }} 100% {{ transform: translateX(-100%); }} }}
-    .led-ticker {{ 
-        background: #050505; border-bottom: 2px solid #333; padding: 15px; 
-        overflow: hidden; white-space: nowrap; width: 100%; font-weight: bold; font-size: 22px; 
-    }}
-    .led-ticker div {{ display: inline-block; animation: marquee 40s linear infinite; }}
-    /* Glassmorphism Tabs */
-    .stTabs [data-baseweb="tab-list"] {{ background-color: #000; border-bottom: 1px solid #333; }}
-    .stTabs [data-baseweb="tab"] {{ color: #00ff41 !important; }}
+    .led-ticker {{ background: #050505; border-bottom: 2px solid #333; padding: 10px; overflow: hidden; white-space: nowrap; width: 100%; font-weight: bold; font-size: 18px; }}
+    .led-ticker div {{ display: inline-block; animation: marquee 30s linear infinite; }}
+    .newspaper-box {{ border: 2px solid #00ff41; padding: 20px; background: rgba(0, 255, 65, 0.05); margin-top: 20px; }}
+    .news-headline {{ font-size: 24px; text-shadow: 0 0 10px #00ff41; text-transform: uppercase; }}
     </style>
-    <div class="led-ticker"><div>{ticker_html} | {ticker_html}</div></div>
-""")
+    <div class="led-ticker"><div>NVDA: $124 (+2%) | BTC: $64K (+1%) | TSLA: $210 (+5%) | TIME: {now} | NVDA: $124 (+2%) | BTC: $64K (+1%)</div></div>
+""", unsafe_allow_html=True)
 
-# --- 2. PERSISTENT STATE & DATA ---
+# --- 2. PERSISTENT STATE ENGINE (The Secret to Layering) ---
+# We use st.session_state to make sure buttons "remember" what they did
+if 'indicators' not in st.session_state: st.session_state.indicators = []
 if 'ticker' not in st.session_state: st.session_state.ticker = "NVDA"
 
-@st.cache_data(ttl=3600)
+# --- 3. DATA ENGINE ---
+@st.cache_data(ttl=60)
 def load_deep_data(ticker):
     s = yf.Ticker(ticker)
-    df = s.history(period="5y")
-    return df, s.info, s.quarterly_financials, s.quarterly_balance_sheet, s.options
+    df = s.history(period="2y", auto_adjust=True)
+    df['EMA20'] = ta.ema(df['Close'], length=20)
+    df['EMA50'] = ta.ema(df['Close'], length=50)
+    df['RSI'] = ta.rsi(df['Close'], length=14)
+    return df, s.info, s.quarterly_financials
 
 try:
-    df, info, financials, balance, opt_dates = load_deep_data(st.session_state.ticker)
+    df, info, financials = load_deep_data(st.session_state.ticker)
 
-    # --- 3. COMMAND CENTER LAYOUT ---
-    l, c, r = st.columns([1, 4.5, 1.2])
+    # --- 4. COMMAND CENTER LAYOUT ---
+    l, c, r = st.columns([1, 4, 1.2])
 
     with l:
-        st.markdown("### // HUD_METRICS")
-        st.metric("PRICE", f"${df['Close'].iloc[-1]:,.2f}")
-        st.metric("MARKET_CAP", f"${info.get('marketCap', 0):,.0f}")
-        st.metric("P/E_RATIO", f"{info.get('trailingPE', 'N/A')}")
+        st.markdown("### // CHART_LAYERS")
+        # These buttons now TOGGLE items in a list
+        if st.button("TOGGLE_EMA_CROSS"):
+            st.session_state.indicators.append("EMA") if "EMA" not in st.session_state.indicators else st.session_state.indicators.remove("EMA")
+        if st.button("TOGGLE_RSI_PANE"):
+            st.session_state.indicators.append("RSI") if "RSI" not in st.session_state.indicators else st.session_state.indicators.remove("RSI")
+        if st.button("CLEAR_LAYERS"): st.session_state.indicators = []
+        
         st.markdown("---")
-        # Add 5 Side Buttons for Layers
-        for layer in ["EMA_CROSS", "RSI_PANE", "VWAP", "VOLUME_PROFILE", "BOLLINGER"]:
-            st.button(f"ENABLE_{layer}")
+        st.metric("LATEST_PRICE", f"${df['Close'].iloc[-1]:,.2f}")
+        st.metric("24H_CHG", f"{((df['Close'].iloc[-1]/df['Close'].iloc[-2])-1)*100:.2f}%")
 
     with r:
-        st.markdown("### // MACD_PINESCRIPT")
-        st.text_area("PINE_CODE", height=200, placeholder="//@version=5\nindicator('Greeks')...")
-        st.button("COMPILE_STRATEGY")
-        st.markdown("---")
-        st.subheader("MACRO_IMPACT")
-        st.error("CPI DATA: HIGH")
-        st.warning("FOMC: MEDIUM")
+        st.markdown("### // PINE_COMPILER")
+        pine_input = st.text_area("PASTE_CODE", height=200, placeholder="//@version=5\nindicator('Greeks')...")
+        if st.button("EXECUTE_PINE"):
+            if "ta.rsi" in pine_input.lower(): st.session_state.indicators.append("RSI")
+            st.toast("Logic Synced to Mainframe")
 
     with c:
-        t_in = st.text_input("SET_ACTIVE_SYMBOL", value=st.session_state.ticker).upper()
+        t_in = st.text_input("ACTIVE_TICKER", value=st.session_state.ticker).upper()
         if t_in != st.session_state.ticker:
             st.session_state.ticker = t_in
             st.rerun()
 
-        tabs = st.tabs(["📊 MAIN_TERMINAL", "📉 OPTIONS_GREEKS", "💰 FINANCIALS_VIZ", "📅 MACRO_CALENDAR"])
+        t1, t2, t3, t4 = st.tabs(["📊 ANALYSIS", "📉 OPTIONS", "💰 FINANCIALS", "📰 DAILY_NEWSPAPER"])
 
-        with tabs[0]:
-            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
+        with t1:
+            # Multi-Pane Charting
+            rows = 2 if "RSI" in st.session_state.indicators else 1
+            fig = make_subplots(rows=rows, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3] if rows==2 else [1.0])
             fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="PRC"), row=1, col=1)
-            fig.add_trace(go.Bar(x=df.index, y=df['Volume'], name="VOL", marker_color='#00ff41'), row=2, col=1)
-            fig.update_layout(template="plotly_dark", height=700, paper_bgcolor='black', plot_bgcolor='black', xaxis_rangeslider_visible=False)
+            
+            if "EMA" in st.session_state.indicators:
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA20'], name="EMA20", line=dict(color="#00ff41")), row=1, col=1)
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA50'], name="EMA50", line=dict(color="#ff4b4b")), row=1, col=1)
+            
+            if "RSI" in st.session_state.indicators:
+                fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], name="RSI", line=dict(color="#2962ff")), row=2, col=1)
+                fig.add_hline(y=70, line_dash="dot", line_color="red", row=2, col=1)
+                fig.add_hline(y=30, line_dash="dot", line_color="green", row=2, col=1)
+
+            fig.update_layout(template="plotly_dark", height=650, paper_bgcolor='black', plot_bgcolor='black', xaxis_rangeslider_visible=False)
             st.plotly_chart(fig, use_container_width=True)
 
-        with tabs[1]:
-            st.subheader("// VOLATILITY_SKEW_ANALYSIS")
-            chain = yf.Ticker(st.session_state.ticker).option_chain(opt_dates[0])
-            # Visualization of IV Skew
-            skew_fig = go.Figure()
-            skew_fig.add_trace(go.Scatter(x=chain.calls['strike'], y=chain.calls['impliedVolatility'], name="CALL_IV", line=dict(color="#00ff41")))
-            skew_fig.add_trace(go.Scatter(x=chain.puts['strike'], y=chain.puts['impliedVolatility'], name="PUT_IV", line=dict(color="#ff4b4b")))
-            skew_fig.update_layout(template="plotly_dark", title="Option Implied Volatility Skew")
-            st.plotly_chart(skew_fig, use_container_width=True)
-            st.dataframe(chain.calls.style.background_gradient(cmap='Greens'), height=400)
-
-        with tabs[2]:
-            st.subheader("// VISUALIZED_STATEMENTS")
-            c_viz1, c_viz2 = st.columns(2)
-            with c_viz1:
-                # Quarterly Revenue Trend
-                rev_fig = go.Figure(data=[go.Bar(x=financials.columns, y=financials.loc['Total Revenue'], marker_color='#00ff41')])
-                rev_fig.update_layout(title="Revenue Growth (Quarterly)", template="plotly_dark")
-                st.plotly_chart(rev_fig, use_container_width=True)
-            with c_viz2:
-                # Profitability: Gross Profit vs Operating Expense
-                prof_fig = go.Figure()
-                prof_fig.add_trace(go.Bar(x=financials.columns, y=financials.loc['Gross Profit'], name="Gross Profit", marker_color="#00ff41"))
-                prof_fig.update_layout(barmode='group', title="Profitability Matrix", template="plotly_dark")
-                st.plotly_chart(prof_fig, use_container_width=True)
-
-        with tabs[3]:
-            st.subheader("// FOREX_FACTORY_MACRO_FEED")
-            # Simulated Calendar with Importance Rating
-            macro_events = pd.DataFrame([
-                {"Time": "08:30", "Currency": "USD", "Impact": "🔴 HIGH", "Event": "Core CPI m/m", "Actual": "0.3%", "Forecast": "0.2%"},
-                {"Time": "10:00", "Currency": "USD", "Impact": "🟡 MED", "Event": "Consumer Confidence", "Actual": "108.0", "Forecast": "104.5"},
-                {"Time": "14:15", "Currency": "EUR", "Impact": "🔴 HIGH", "Event": "Main Refinancing Rate", "Actual": "4.50%", "Forecast": "4.50%"}
-            ])
-            st.table(macro_events)
+        with t4:
+            st.markdown(f"### 📰 THE {st.session_state.ticker} GAZETTE")
+            st.caption(f"EDITION: {now} | STATUS: LIVE")
+            
+            # Simulated "New Person Writing" Style
+            with st.container(border=True):
+                st.markdown(f"""
+                <div class='newspaper-box'>
+                    <div class='news-headline'>"{st.session_state.ticker} Markets Are Grinding Retail Into Dust Today"</div>
+                    <hr style='border-color: #00ff41'>
+                    <p style='font-style: italic;'>By The Institutional Ghostwriter</p>
+                    <p>It's another one of those mornings where the tape just won't lie. <b>{st.session_state.ticker}</b> is currently trading at ${df['Close'].iloc[-1]:,.2f}, 
+                    showing a relative strength of {df['RSI'].iloc[-1]:.2f}. While the average retail trader is staring at their 5-minute charts, 
+                    the whales are busy stacking orders at the institutional levels.</p>
+                    <p>Technically, the price action is looking <b>{'extended' if df['RSI'].iloc[-1] > 70 else 'coiled'}</b>. If we don't see a sweep of the 
+                    prevailing highs soon, expect a liquidity flush that will leave the "moon boys" crying in their Discord servers.</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            st.markdown("#### 📅 GLOBAL MACRO CALENDAR")
+            macro_data = [
+                {"Event": "US Core CPI", "Impact": "🔴 HIGH", "Forecast": "0.3%", "Actual": "---"},
+                {"Event": "Unemployment Claims", "Impact": "🟡 MED", "Forecast": "225K", "Actual": "228K"}
+            ]
+            st.table(macro_data)
 
 except Exception as e:
     st.error(f"SYSTEM_HALTED: {e}")
