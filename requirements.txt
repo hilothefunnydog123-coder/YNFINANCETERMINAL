@@ -1,8 +1,7 @@
 streamlit
 yfinance
-pandas_ta
-vectorbt
-plotly
 pandas
-anywidget
+pandas_ta
+plotly
 google-generativeai
+numpy
