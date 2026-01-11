@@ -7,12 +7,11 @@ import pandas as pd
 from datetime import datetime
 import google.generativeai as genai 
 
-# --- 0. MASTER KEY LOCK (OPTION 2: HARDCODED) ---
-# Replace the string below with your actual fresh API key
+# --- 0. MASTER KEY LOCK (FUEL INJECTED) ---
 GEMINI_API_KEY = "AIzaSyA0ob-XPm7DqZdEwcNTfORtYJHGuER5fXc"
 
 # --- 1. MAJESTIC NEON UI & DYNAMIC TICKER ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_V42_APEX", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="SOVEREIGN_V43_APEX", initial_sidebar_state="collapsed")
 
 if 'ticker' not in st.session_state: st.session_state.ticker = "NVDA"
 if 'active_layers' not in st.session_state: st.session_state.active_layers = ["EMA"]
@@ -123,7 +122,6 @@ try:
                 if found_key:
                     fin_fig = make_subplots(specs=[[{"secondary_y": True}]])
                     fin_fig.add_trace(go.Bar(x=financials.columns, y=financials.loc[found_key], name="Revenue", marker_color='#00ff41'), secondary_y=False)
-                    # Debt-to-Equity Logic
                     if balance is not None and 'Total Debt' in balance.index and 'Stockholders Equity' in balance.index:
                         de_ratio = balance.loc['Total Debt'] / balance.loc['Stockholders Equity']
                         fin_fig.add_trace(go.Scatter(x=balance.columns, y=de_ratio, name="D/E Ratio", line=dict(color="#ff00ff")), secondary_y=True)
@@ -132,9 +130,9 @@ try:
                 st.dataframe(financials, use_container_width=True)
 
         with tabs[4]:
-            # --- THE SENTIENT AI GHOSTWRITER (AUTO-DISCOVERY) ---
+            # --- THE SENTIENT AI GHOSTWRITER ---
             ai_story = ""
-            if GEMINI_API_KEY != "AIzaSyA0ob-XPm7DqZdEwcNTfORtYJHGuER5fXc":
+            if GEMINI_API_KEY != "PASTE_YOUR_NEW_KEY_HERE":
                 try:
                     genai.configure(api_key=GEMINI_API_KEY)
                     models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
@@ -148,8 +146,6 @@ try:
                     ai_story = response.text.replace("*", "").replace("#", "")
                 except Exception as e:
                     ai_story = f"SYSTEM_ERROR: {e}"
-            else:
-                ai_story = "ERROR: API KEY NOT CONFIGURED. Paste key on Line 11 of the source code."
             
             st.markdown(f"""
                 <div class="gazette-body">
