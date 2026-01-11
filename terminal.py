@@ -9,7 +9,7 @@ import google.generativeai as genai
 
 # --- 0. MASTER KEY LOCK ---
 # PASTE YOUR GEMINI API KEY HERE
-GEMINI_API_KEY = "YOUR_ACTUAL_GEMINI_API_KEY_HERE"
+GEMINI_API_KEY = "AIzaSyAkGNUAYZXnPD83MFq2SAFqzq_fmNWCIqI"
 
 # --- 1. MAJESTIC NEON UI OVERHAUL ---
 st.set_page_config(layout="wide", page_title="SOVEREIGN_V31_APEX", initial_sidebar_state="collapsed")
