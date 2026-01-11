@@ -7,14 +7,12 @@ import pandas as pd
 from datetime import datetime
 import google.generativeai as genai 
 
-# --- 0. MASTER KEY LOCK ---
-GEMINI_API_KEY = "AIzaSyAkGNUAYZXnPD83MFq2SAFqzq_fmNWCIqI"
-
 # --- 1. MAJESTIC UI & DYNAMIC TICKER ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_V40_LOCKED", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="SOVEREIGN_V41_SECURE", initial_sidebar_state="collapsed")
 
 if 'ticker' not in st.session_state: st.session_state.ticker = "NVDA"
 if 'active_layers' not in st.session_state: st.session_state.active_layers = ["EMA"]
+if 'api_key' not in st.session_state: st.session_state.api_key = ""
 
 tickers_list = ["NVDA", "BTC-USD", "AAPL", "ETH-USD", "TSLA", "AMZN", "MSFT", "META", "GOOGL", "SOL-USD", "SPY", "QQQ", "GLD", "VIX", "GC=F", "USO"]
 
@@ -56,16 +54,20 @@ def fetch_master_data(ticker):
     df['EMA50'] = ta.ema(df['Close'], length=50)
     df['RSI'] = ta.rsi(df['Close'], length=14)
     news = [n for n in s.news if 'title' in n] if s.news else []
-    return df, s.info, s.quarterly_financials, s.options, news
+    return df, s.info, s.quarterly_financials, s.quarterly_balance_sheet, s.options, news
 
 try:
-    df, info, financials, opt_dates, live_news = fetch_master_data(st.session_state.ticker)
+    df, info, financials, balance, opt_dates, live_news = fetch_master_data(st.session_state.ticker)
     l, c, r = st.columns([1, 4.8, 1.2])
 
     with l:
-        st.markdown("### // HUD_ACTIVE")
+        st.markdown("### // SYSTEM_HUD")
         st.metric("SPOT_PRICE", f"${df['Close'].iloc[-1]:,.2f}")
         st.metric("MOMENTUM_RSI", f"{df['RSI'].iloc[-1]:.1f}")
+        st.markdown("---")
+        # SECURE INPUT: Prevents Key Leaking
+        st.session_state.api_key = st.text_input("GEMINI_KEY", type="password", placeholder="Enter New Key...")
+        st.markdown("---")
         if st.button("TOGGLE EMA_CROSS"):
             st.session_state.active_layers.append("EMA") if "EMA" not in st.session_state.active_layers else st.session_state.active_layers.remove("EMA")
         if st.button("TOGGLE RSI_PANE"):
@@ -107,45 +109,51 @@ try:
             if opt_dates:
                 chain = yf.Ticker(st.session_state.ticker).option_chain(opt_dates[0])
                 st.dataframe(chain.calls, use_container_width=True, height=600)
-            else:
-                st.info("NO_DERIVATIVES_DATA_FOUND")
 
         with tabs[3]:
-            # --- START FIXED FINANCIALS LOGIC ---
-            st.subheader("// QUARTERLY_REVENUE_MATRIX")
+            # --- FINANCIALS CHART & DEBT/EQUITY ---
+            st.subheader("// FINANCIAL_LEVERAGE_MATRIX")
             if financials is not None and not financials.empty:
+                # Revenue Scanner
                 rev_keys = ['Total Revenue', 'Operating Revenue', 'Revenue', 'TotalRevenue']
                 found_key = next((k for k in rev_keys if k in financials.index), None)
                 
                 if found_key:
-                    rev_fig = go.Figure(data=[go.Bar(x=financials.columns, y=financials.loc[found_key], marker_color='#00ff41')])
-                    rev_fig.update_layout(template="plotly_dark", title=f"Quarterly {found_key} Analysis")
-                    st.plotly_chart(rev_fig, use_container_width=True)
+                    fin_fig = make_subplots(specs=[[{"secondary_y": True}]])
+                    fin_fig.add_trace(go.Bar(x=financials.columns, y=financials.loc[found_key], name="Revenue", marker_color='#00ff41'), secondary_y=False)
                     
-                else:
-                    st.warning("REVENUE_KEY_NOT_FOUND: DISPLAYING_RAW_TABLE")
+                    # Debt-to-Equity Logic
+                    if balance is not None and 'Total Debt' in balance.index and 'Stockholders Equity' in balance.index:
+                        de_ratio = balance.loc['Total Debt'] / balance.loc['Stockholders Equity']
+                        fin_fig.add_trace(go.Scatter(x=balance.columns, y=de_ratio, name="D/E Ratio", line=dict(color="#ff00ff")), secondary_y=True)
+                        fin_fig.update_yaxes(title_text="Debt/Equity Ratio", secondary_y=True, gridcolor='rgba(255,0,255,0.1)')
+                    
+                    fin_fig.update_layout(template="plotly_dark", title=f"Quarterly {found_key} & Leverage Trend")
+                    st.plotly_chart(fin_fig, use_container_width=True)
+                    
                 
                 st.dataframe(financials, use_container_width=True)
             else:
                 st.info("FINANCIAL_DATA_OFFLINE")
-            # --- END FIXED FINANCIALS LOGIC ---
 
         with tabs[4]:
             ai_story = ""
-            if GEMINI_API_KEY:
+            if st.session_state.api_key:
                 try:
-                    genai.configure(api_key=GEMINI_API_KEY)
+                    genai.configure(api_key=st.session_state.api_key)
                     models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
                     target_model = models[0] if models else "gemini-1.5-flash"
                     model_engine = genai.GenerativeModel(target_model)
                     h_list = "\n".join([f"- {n['title']}" for n in live_news[:5]]) if live_news else "Tape silent."
-                    prompt = (f"Write a snarky, humorous institutional Wall Street newspaper article for {st.session_state.ticker}. "
-                              f"Data: Price ${df['Close'].iloc[-1]:.2f}, RSI {df['RSI'].iloc[-1]:.1f}. "
-                              f"Headlines: {h_list}. Use financial slang and mention 'retail bagholders'.")
+                    prompt = (f"Write a snarky, humorous 200-word newspaper front page for {st.session_state.ticker}. "
+                              f"Price ${df['Close'].iloc[-1]:.2f}, RSI {df['RSI'].iloc[-1]:.1f}. "
+                              f"Headlines: {h_list}. Use financial slang.")
                     response = model_engine.generate_content(prompt)
                     ai_story = response.text.replace("*", "").replace("#", "")
                 except Exception as e:
-                    ai_story = f"SYSTEM_ERROR: The Ghostwriter was detained by the SEC. ({e})"
+                    ai_story = f"SYSTEM_ERROR: {e}"
+            else:
+                ai_story = "ERROR: AUTHORIZATION REQUIRED. Enter a fresh Gemini Key in the HUD."
             
             newspaper_html = f"""
             <div class="gazette-body">
