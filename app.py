@@ -1,61 +1,29 @@
 import streamlit as st
 import yfinance as yf
-import requests
-import google.generativeai as genai
 
-st.set_page_config(layout="wide", page_title="SOVEREIGN_V45_PLATFORM")
+st.set_page_config(layout="wide", page_title="SOVEREIGN_V45")
 
-# --- 0. SECURE KEY INJECTION ---
-try:
-    FMP_KEY = st.secrets["FMP_KEY"]
-    GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
-except:
-    st.error("SYSTEM_OFFLINE: Configure Secrets first.")
-    st.stop()
+# Sync the ticker across all pages using Session State
+if 'ticker' not in st.session_state:
+    st.session_state.ticker = "NVDA"
 
-# --- 1. HUD & GLOBAL STATE ---
-if 'ticker' not in st.session_state: st.session_state.ticker = "NVDA"
+st.title("// SOVEREIGN_IDENTIFICATION_HUB")
 
-with st.sidebar:
-    st.title("SOVEREIGN_V45")
-    t_input = st.text_input("SET_ACTIVE_SYMBOL", value=st.session_state.ticker).upper()
-    if t_input != st.session_state.ticker:
-        st.session_state.ticker = t_input
-        st.rerun()
+# Global Ticker Input
+ticker_input = st.sidebar.text_input("SET_ACTIVE_SYMBOL", value=st.session_state.ticker).upper()
+if ticker_input != st.session_state.ticker:
+    st.session_state.ticker = ticker_input
+    st.rerun()
 
-# --- 2. CATEGORY 1: SECURITY IDENTIFICATION ---
-@st.cache_data(ttl=3600)
-def fetch_ident_data(ticker):
-    # FMP is the 'Gold' source for IDs (ISIN, CUSIP, FIGI)
-    url = f"https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={FMP_KEY}"
-    try:
-        data = requests.get(url).json()[0]
-        return data
-    except:
-        return yf.Ticker(ticker).info
-
-profile = fetch_ident_data(st.session_state.ticker)
-
-# --- 3. MAJESTIC LAYOUT ---
-l, r = st.columns([1, 2])
-with l:
-    st.markdown("### // IDENTIFICATION")
-    st.table({
-        "Ticker": profile.get('symbol'),
-        "ISIN": profile.get('isin', 'N/A'),
-        "CUSIP": profile.get('cusip', 'N/A'),
-        "Exchange": profile.get('exchangeShortName'),
-        "Sector": profile.get('sector'),
-        "Industry": profile.get('industry'),
-        "Currency": profile.get('currency')
-    })
-
-with r:
-    st.markdown("### // SOVEREIGN_GAZETTE")
-    # Category 20: Proprietary AI Insight
-    genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    prompt = f"Write a professional Bloomberg Intelligence report for {st.session_state.ticker}. Summary of risk, current sentiment, and valuation roasts."
-    if st.button("GENERATE_INTELLIGENCE"):
-        response = model.generate_content(prompt)
-        st.write(response.text)
+# Category 1: Identification Data
+info = yf.Ticker(st.session_state.ticker).info
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown("### // SECURITY_KEYS")
+    st.write(f"**Name:** {info.get('longName')}")
+    st.write(f"**ISIN:** {info.get('isin', 'N/A')}")
+    st.write(f"**Exchange:** {info.get('exchange')}")
+with col2:
+    st.markdown("### // CLASSIFICATION")
+    st.write(f"**Sector:** {info.get('sector')}")
+    st.write(f"**Asset Class:** Equity")
