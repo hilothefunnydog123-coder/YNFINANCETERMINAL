@@ -1,18 +1,12 @@
 import streamlit as st
-import yfinance as yf
-import plotly.graph_objects as go
+import requests
 
-st.title(f"// MARKET_LIVE: {st.session_state.ticker}")
+ALPHA_VANTAGE_KEY = "YHXXV65N36WSEMAF"
+ticker = st.session_state.ticker
 
-# Category 2 & 3: Real-time and Intraday Prices
-data = yf.download(st.session_state.ticker, period="1d", interval="1m")
+# Category 2: Real-time Market Data
+url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={ticker}&apikey={ALPHA_KEY}"
+data = requests.get(url).json().get("Global Quote", {})
 
-fig = go.Figure(data=[go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
-fig.update_layout(template="plotly_dark", title="1-Minute Intraday Flux")
-st.plotly_chart(fig, use_container_width=True)
-
-# Metric Grid
-c1, c2, c3 = st.columns(3)
-c1.metric("LAST_PRICE", f"${data['Close'].iloc[-1]:.2f}")
-c2.metric("VWAP", "CALCULATING...")
-c3.metric("HALT_STATUS", "NOMINAL")
+st.metric("LAST_PRICE", f"${data.get('05. price', '0.00')}")
+st.metric("CHANGE", data.get('10. change percent', '0%'))
