@@ -1,8 +1,8 @@
 import streamlit as st
 import requests
 import pandas as pd
-
-FMP_KEY = st.secrets["Ksd4nUJfWMKAGWgLJQBpgmpprBfWKILp"]
+# RIGHT: Use the name of the variable you wrote in your secrets.toml
+FMP_KEY = st.secrets["FMP_KEY"]
 ticker = st.session_state.ticker
 
 # Category 5: Fundamentals
