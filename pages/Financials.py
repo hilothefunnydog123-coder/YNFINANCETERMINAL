@@ -1,29 +1,31 @@
 import streamlit as st
 import yfinance as yf
-import pandas as pd
 
-# 1. TECHY CSS INJECTION (The "Startup" Look)
+# 1. GLOBAL TERMINAL STYLING
 st.markdown("""
-    <style>
-    /* Glassmorphism Card Effect */
-    [data-testid="stMetric"] {
-        background: rgba(255, 255, 255, 0.05);
+<style>
+    .reportview-container { background: #0d0d0d; }
+    /* Majestic Glass Card */
+    .data-card {
+        background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(0, 255, 65, 0.2);
-        padding: 15px;
-        border-radius: 12px;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        backdrop-filter: blur(5px);
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 0 15px rgba(0, 255, 65, 0.1);
     }
-    /* Techy Sidebar/Header Style */
-    .stat-header {
+    .card-header {
         color: #00f0ff;
         font-family: 'Courier New', monospace;
-        letter-spacing: 1px;
-        border-left: 3px solid #00f0ff;
-        padding-left: 10px;
-        margin-top: 30px;
+        letter-spacing: 2px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #333;
     }
-    </style>
+    .data-label { color: #888; font-size: 12px; text-transform: uppercase; }
+    .data-value { color: #ffffff; font-size: 18px; font-family: 'Courier New', monospace; font-weight: bold; }
+    .glow-green { color: #00ff41; text-shadow: 0 0 10px #00ff41; }
+</style>
 """, unsafe_allow_html=True)
 
 # 2. DATA INITIALIZATION
@@ -31,39 +33,50 @@ ticker = st.session_state.get('ticker', 'NVDA')
 stock = yf.Ticker(ticker)
 info = stock.info
 
-st.markdown(f"<h1 style='color: #00ff41;'>// FINANCIAL_CORE_INTELLIGENCE: {ticker}</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 class='glow-green'>// FINANCIAL_INTELLIGENCE_MTX: {ticker}</h1>", unsafe_allow_html=True)
 
-# 3. ANALYSIS & FORECASTS (The "Impressive" Section)
-st.markdown("<p class='stat-header'>// ANALYST_CONSENSUS_ENGINE</p>", unsafe_allow_html=True)
+# --- HUB 1: ANALYST FORECASTS & ESTIMATES (Category 7) ---
+st.markdown("<div class='data-card'>", unsafe_allow_html=True)
+st.markdown("<div class='card-header'>// ANALYST_TARGETS_v46</div>", unsafe_allow_html=True)
 f1, f2, f3, f4 = st.columns(4)
 
-# Professional Defensive Logic
-target = info.get('targetMedianPrice') or info.get('targetMeanPrice') or 0
-current = info.get('currentPrice') or info.get('regularMarketPrice') or 1
+target = info.get('targetMedianPrice', 0)
+current = info.get('currentPrice', 1)
 upside = ((target / current) - 1) * 100 if target else 0
 
-with st.container():
-    f1.metric("EST_TARGET", f"${target:,.2f}", delta=f"{upside:.2f}%")
-    f2.metric("RECO_KEY", info.get('recommendationKey', 'N/A').upper())
-    f3.metric("ANALYSTS", info.get('numberOfAnalystOpinions', '0'))
-    f4.metric("PE_RATIO", f"{info.get('trailingPE', 0):.2f}")
+with f1: st.metric("EST_VALUE", f"${target}", delta=f"{upside:.2f}%")
+with f2: st.metric("CONSENSUS", info.get('recommendationKey', 'N/A').upper())
+with f3: st.metric("ANALYST_COUNT", info.get('numberOfAnalystOpinions', '0'))
+with f4: st.metric("PE_RATIO", f"{info.get('trailingPE', 0):.2f}")
+st.markdown("</div>", unsafe_allow_html=True)
 
-# 4. DATA MATRIX (MAJESTIC TABS)
-st.markdown("<p class='stat-header'>// CORE_FINANCIAL_MATRICES</p>", unsafe_allow_html=True)
-tab1, tab2, tab3 = st.tabs(["INCOME_MTX", "BALANCE_MTX", "CASH_FLOW_MTX"])
+# --- HUB 2: CORE MATRICES (Category 5 & 6) ---
+st.markdown("<p class='stat-header'>// FINANCIAL_BENTO_GRID</p>", unsafe_allow_html=True)
 
-def style_df(df):
-    # Transpose so dates are rows and line items are columns (App-like look)
-    return df.transpose().style.format(precision=0, thousands=",")
+col_a, col_b = st.columns(2)
 
-with tab1:
-    st.write("### [INCOME_STATEMENT_HISTORY]")
-    st.dataframe(style_df(stock.income_stmt), use_container_width=True)
+with col_a:
+    st.markdown("<div class='data-card'>", unsafe_allow_html=True)
+    st.markdown("<div class='card-header'>INCOME_DYNAMICS</div>", unsafe_allow_html=True)
+    # Mapping your specific list points
+    st.markdown(f"<span class='data-label'>Total Revenue</span><br><span class='data-value'>${info.get('totalRevenue', 0):,}</span>", unsafe_allow_html=True)
+    st.markdown(f"<p><span class='data-label'>Gross Profit</span><br><span class='data-value'>${info.get('grossProfits', 0):,}</span></p>", unsafe_allow_html=True)
+    st.markdown(f"<p><span class='data-label'>EBITDA</span><br><span class='data-value'>${info.get('ebitda', 0):,}</span></p>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-with tab2:
-    st.write("### [BALANCE_SHEET_SNAPSHOT]")
-    st.dataframe(style_df(stock.balance_sheet), use_container_width=True)
+with col_b:
+    st.markdown("<div class='data-card'>", unsafe_allow_html=True)
+    st.markdown("<div class='card-header'>BALANCE_STRENGTH</div>", unsafe_allow_html=True)
+    st.markdown(f"<span class='data-label'>Cash on Hand</span><br><span class='data-value'>${info.get('totalCash', 0):,}</span>", unsafe_allow_html=True)
+    st.markdown(f"<p><span class='data-label'>Total Debt</span><br><span class='data-value'>${info.get('totalDebt', 0):,}</span></p>", unsafe_allow_html=True)
+    st.markdown(f"<p><span class='data-label'>Quick Ratio</span><br><span class='data-value'>{info.get('quickRatio', 'N/A')}</span></p>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-with tab3:
-    st.write("### [CASH_FLOW_BRIDGE]")
-    st.dataframe(style_df(stock.cashflow), use_container_width=True)
+# --- HUB 3: OWNERSHIP & FLOW (Category 8) ---
+st.markdown("<div class='data-card'>", unsafe_allow_html=True)
+st.markdown("<div class='card-header'>OWNERSHIP_STRUCTURE</div>", unsafe_allow_html=True)
+o1, o2, o3 = st.columns(3)
+o1.write(f"**Institutional:** {info.get('heldPercentInstitutions', 0)*100:.2f}%")
+o2.write(f"**Insiders:** {info.get('heldPercentInsiders', 0)*100:.2f}%")
+o3.write(f"**Short % Float:** {info.get('shortPercentOfFloat', 0)*100:.2f}%")
+st.markdown("</div>", unsafe_allow_html=True)
