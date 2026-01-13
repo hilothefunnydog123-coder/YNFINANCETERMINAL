@@ -2,66 +2,42 @@ import streamlit as st
 import pandas as pd
 import google.generativeai as genai
 
-# 1. ORACLE CONFIG
+# 1. AI ORACLE INITIALIZATION
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-def get_oracle_insight(metric, value, ticker):
+def trigger_oracle(metric, val):
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
-        prompt = f"As a Quant Analyst, explain {metric} ({value}) for {ticker}. Make it high-stakes and captivating. Max 80 words."
-        return model.generate_content(prompt).text
-    except: return "ORACLE_LINK_OFFLINE"
+        prompt = f"As a top-tier Quant, explain {metric} ({val}) for {st.session_state.get('ticker')}. High-stakes, captivating, 70 words."
+        response = model.generate_content(prompt)
+        st.session_state.oracle_msg = response.text
+    except:
+        st.session_state.oracle_msg = "ORACLE_SIGNAL_LOST: Check API Link."
 
-# 2. LIST STYLING
-st.markdown("""
-<style>
-    .data-row {
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 10px 20px; border-bottom: 1px solid rgba(0, 255, 65, 0.1);
-        transition: 0.2s;
-    }
-    .data-row:hover { background: rgba(0, 255, 65, 0.05); }
-    .label-text { color: #888; font-family: monospace; font-size: 14px; }
-    .value-text { color: #00ff41; font-family: 'Courier New'; font-weight: bold; }
-    .oracle-box { background: rgba(0, 255, 65, 0.05); border: 1px solid #00ff41; padding: 20px; border-radius: 15px; }
-</style>
-""", unsafe_allow_html=True)
+# 2. SESSION STATE
+if 'oracle_msg' not in st.session_state: st.session_state.oracle_msg = "SELECT A SIGNAL TO DECODE..."
 
-if 'oracle_msg' not in st.session_state:
-    st.session_state.oracle_msg = "AWAITING SIGNAL SELECTION..."
-
-df = st.session_state.get('matrix_data')
-label = st.session_state.get('matrix_label', 'DATA')
-
-st.markdown(f"<h1>// DATA_MATRIX: {label}</h1>", unsafe_allow_html=True)
+# 3. MAJESTIC LIST VIEW
+st.markdown(f"<h1>// DATA_MATRIX: {st.session_state.get('matrix_label')}</h1>", unsafe_allow_html=True)
 if st.button("<< RETURN_TO_HUB"): st.switch_page("pages/02_Financials.py")
 
 with st.sidebar:
     st.markdown("<h2 style='color:#00ff41;'>// AI_ORACLE_FEED</h2>", unsafe_allow_html=True)
-    st.markdown(f"<div class='oracle-box'>{st.session_state.oracle_msg}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='border:1px solid #00ff41; padding:20px; border-radius:10px; background:rgba(0,255,65,0.05);'>{st.session_state.oracle_msg}</div>", unsafe_allow_html=True)
 
-# 3. HIGH-DENSITY LIST ENGINE
+df = st.session_state.get('matrix_data')
 if df is not None:
-    # Take the latest data point
     latest = df.iloc[:, 0]
-    
-    # Raking: In finance, items with larger absolute values are often more 'important' 
-    # (Revenue > Misc Expenses). We sort by importance for the list.
-    items = list(latest.items())
-    # Sort by value if numeric, otherwise keep original order
-    try:
-        items.sort(key=lambda x: abs(float(x[1])) if isinstance(x[1], (int, float)) else 0, reverse=True)
-    except: pass
+    # SORT BY IMPORTANCE (Magnitude of the number)
+    items = sorted(list(latest.items()), key=lambda x: abs(x[1]) if isinstance(x[1], (int, float)) else 0, reverse=True)
 
     for i, (k, v) in enumerate(items):
         display_v = f"{v:,.2f}" if isinstance(v, (int, float)) else str(v)
         
-        # We use a columns layout to create a "Clickable Row" effect
+        # TERMINAL ROW STYLING
         c1, c2, c3 = st.columns([3, 2, 1])
-        with c1: st.markdown(f"<p class='label-text'>{k.upper()}</p>", unsafe_allow_html=True)
-        with c2: st.markdown(f"<p class='value-text'>{display_v}</p>", unsafe_allow_html=True)
+        with c1: st.markdown(f"<p style='color:#888; font-family:monospace;'>{k.upper()}</p>", unsafe_allow_html=True)
+        with c2: st.markdown(f"<p style='color:#00ff41; font-family:Courier; font-weight:bold;'>{display_v}</p>", unsafe_allow_html=True)
         with c3:
-            if st.button("DECODE", key=f"decode_{i}"):
-                with st.spinner("ANALYZING..."):
-                    st.session_state.oracle_msg = get_oracle_insight(k, display_v, "THIS_TICKER")
-                    st.rerun()
+            # CALLBACK FIX: on_click handles the data before rerun
+            st.button("DECODE", key=f"dec_{i}", on_click=trigger_oracle, args=(k, display_v))
