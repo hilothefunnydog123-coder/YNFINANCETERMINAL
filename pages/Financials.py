@@ -1,20 +1,40 @@
 import streamlit as st
 import yfinance as yf
 
-stock = yf.Ticker(st.session_state.ticker)
+ticker = st.session_state.get('ticker', 'NVDA')
+stock = yf.Ticker(ticker)
 info = stock.info
 
-st.markdown("<h1 style='color:#00ff41;'>// FUNDAMENTAL_HUB</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='color: #00ff41;'>// FINANCIAL_INTELLIGENCE: {ticker}</h1>", unsafe_allow_html=True)
 
-# CATEGORY 7: ESTIMATES & FORECASTS (Fixed)
-st.markdown("### // ANALYST_ESTIMATES")
-f1, f2, f3 = st.columns(3)
+# --- CATEGORY 7: ESTIMATES & FORECASTS ---
+st.markdown("### // ANALYST_FORECASTS_2026")
+f1, f2, f3, f4 = st.columns(4)
 
-# Use .get() with fallback values to prevent "NoneType" errors
-f1.metric("TARGET_PRICE", f"${info.get('targetMedianPrice', 'N/A')}")
-f2.metric("RECO_SCORE", info.get('recommendationMean', 'N/A'), help="1.0 Strong Buy -> 5.0 Sell")
-f3.metric("UPSIDE", f"{info.get('targetMeanPrice', 0) / info.get('currentPrice', 1) * 100 - 100:.2f}%")
+# Professional fallback logic for 2026
+target = info.get('targetMedianPrice') or info.get('targetMeanPrice') or "N/A"
+current = info.get('currentPrice') or info.get('regularMarketPrice') or 1
+reco = info.get('recommendationKey', 'N/A').upper()
 
-# CATEGORY 5: STATEMENTS
-with st.expander("VIEW_FULL_FINANCIAL_STATEMENTS"):
+# Calculate Upside %
+upside = "N/A"
+if isinstance(target, (int, float)):
+    upside = f"{((target / current) - 1) * 100:.2f}%"
+
+with st.container():
+    f1.metric("TARGET_PRICE", f"${target}")
+    f2.metric("CURRENT_PRICE", f"${current}")
+    f3.metric("UPSIDE_POTENTIAL", upside)
+    f4.metric("CONSENSUS", reco)
+
+st.markdown("---")
+
+# --- CATEGORY 5: THE FINANCIALS (RESTORED) ---
+st.markdown("### // CORE_STATEMENTS")
+tab1, tab2, tab3 = st.tabs(["INCOME", "BALANCE_SHEET", "CASH_FLOW"])
+with tab1:
     st.dataframe(stock.income_stmt, use_container_width=True)
+with tab2:
+    st.dataframe(stock.balance_sheet, use_container_width=True)
+with tab3:
+    st.dataframe(stock.cashflow, use_container_width=True)
