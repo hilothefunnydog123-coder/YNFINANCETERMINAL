@@ -60,25 +60,3 @@ st.markdown(f"<div class='masthead'><div class='masthead-title'>THE {ticker} GAZ
 
 st.markdown(f"<div class='editorial-box'><b>THE LEAD:</b> {ai_editorial}</div>", unsafe_allow_html=True)
 
-if news_data:
-    st.markdown("<div class='newspaper-columns'>", unsafe_allow_html=True)
-    for item in news_data:
-        # BULLETPROOF KEY FETCHING
-        source = item.get('publisher', 'WIRE_SERVICE')
-        title = item.get('title', 'SIGNAL_ENCRYPTED')
-        link = item.get('link', '#')
-        
-        # Time logic
-        raw_ts = item.get('providerPublishTime')
-        dt_str = datetime.datetime.fromtimestamp(raw_ts).strftime('%b %d, %H:%M') if raw_ts else "MARKET_TIME"
-
-        st.markdown(f"""
-            <div class='article-block'>
-                <div class='dateline'>{source} // {dt_str}</div>
-                <a href='{link}' target='_blank' class='headline'>{title}</a>
-                <p style='color:#888; font-size:13px; margin-top:8px;'>Market signals indicate high-stakes shifts in {ticker} volatility. Delta flows accelerating across institutional desks.</p>
-            </div>
-        """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-else:
-    st.warning("GAZETTE_OFFLINE: No recent headlines detected.")
