@@ -1,40 +1,64 @@
 import streamlit as st
 import yfinance as yf
+import pandas as pd
 
+# 1. TECHY CSS INJECTION
+st.markdown("""
+    <style>
+    /* Glassmorphism Hub Effect */
+    .stDataFrame {
+        border: 1px solid rgba(0, 255, 65, 0.2);
+        border-radius: 15px;
+        overflow: hidden;
+        background: rgba(10, 10, 10, 0.8);
+        backdrop-filter: blur(10px);
+    }
+    /* Techy Data Header */
+    .stat-header {
+        color: #00f0ff;
+        font-family: 'Courier New', monospace;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        border-left: 4px solid #00f0ff;
+        padding-left: 10px;
+        margin-bottom: 20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# 2. DATA INITIALIZATION
 ticker = st.session_state.get('ticker', 'NVDA')
 stock = yf.Ticker(ticker)
 info = stock.info
 
 st.markdown(f"<h1 style='color: #00ff41;'>// FINANCIAL_INTELLIGENCE: {ticker}</h1>", unsafe_allow_html=True)
 
-# --- CATEGORY 7: ESTIMATES & FORECASTS ---
-st.markdown("### // ANALYST_FORECASTS_2026")
-f1, f2, f3, f4 = st.columns(4)
+# 3. FORECASTS (TECHY METRICS)
+st.markdown("<p class='stat-header'>// ANALYST_TARGETS_v46</p>", unsafe_allow_html=True)
+f1, f2, f3 = st.columns(3)
 
-# Professional fallback logic for 2026
-target = info.get('targetMedianPrice') or info.get('targetMeanPrice') or "N/A"
-current = info.get('currentPrice') or info.get('regularMarketPrice') or 1
-reco = info.get('recommendationKey', 'N/A').upper()
-
-# Calculate Upside %
-upside = "N/A"
-if isinstance(target, (int, float)):
-    upside = f"{((target / current) - 1) * 100:.2f}%"
+target = info.get('targetMedianPrice', 0)
+current = info.get('currentPrice', 1)
+upside = ((target / current) - 1) * 100 if target else 0
 
 with st.container():
-    f1.metric("TARGET_PRICE", f"${target}")
-    f2.metric("CURRENT_PRICE", f"${current}")
-    f3.metric("UPSIDE_POTENTIAL", upside)
-    f4.metric("CONSENSUS", reco)
+    f1.metric("EST_VALUE", f"${target}", delta=f"{upside:.2f}%")
+    f2.metric("RECO_KEY", info.get('recommendationKey', 'N/A').upper())
+    f3.metric("ANALYST_COUNT", info.get('numberOfAnalystOpinions', '0'))
 
-st.markdown("---")
+# 4. MAJESTIC FINANCIAL STATEMENTS
+st.markdown("<p class='stat-header'>// CORE_FINANCIAL_MATRIX</p>", unsafe_allow_html=True)
 
-# --- CATEGORY 5: THE FINANCIALS (RESTORED) ---
-st.markdown("### // CORE_STATEMENTS")
-tab1, tab2, tab3 = st.tabs(["INCOME", "BALANCE_SHEET", "CASH_FLOW"])
+# Use st.tabs with techy labels
+tab1, tab2, tab3 = st.tabs(["INCOME_MTX", "BALANCE_MTX", "CASH_FLOW_MTX"])
+
 with tab1:
-    st.dataframe(stock.income_stmt, use_container_width=True)
+    # Transpose and clean for a vertical "App-like" scroll
+    income = stock.income_stmt.transpose()
+    st.data_editor(income, use_container_width=True, disabled=True, hide_index=False)
+
 with tab2:
-    st.dataframe(stock.balance_sheet, use_container_width=True)
+    st.data_editor(stock.balance_sheet.transpose(), use_container_width=True, disabled=True)
+
 with tab3:
-    st.dataframe(stock.cashflow, use_container_width=True)
+    st.data_editor(stock.cashflow.transpose(), use_container_width=True, disabled=True)
