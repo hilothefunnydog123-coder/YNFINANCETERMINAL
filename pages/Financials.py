@@ -3,83 +3,65 @@ import yfinance as yf
 import pandas as pd
 import plotly.express as px
 
-# 1. CORE SYSTEM INITIALIZATION
-st.set_page_config(layout="wide", page_title="SOVEREIGN_ULTIMA_v46")
-
-if 'ticker' not in st.session_state:
-    st.session_state.ticker = "NVDA"
-
-ticker = st.session_state.ticker
-
-# 2. MAJESTIC TERMINAL THEMING
-st.markdown("""
-<style>
-    .stApp { background-color: #050505; color: #00ff41; }
-    .bento-card {
-        background: rgba(0, 255, 65, 0.03);
-        border: 1px solid rgba(0, 255, 65, 0.3);
-        padding: 20px; border-radius: 12px;
-        backdrop-filter: blur(15px); margin-bottom: 20px;
-    }
-    .metric-value { font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold; }
-</style>
-""", unsafe_allow_html=True)
-
-# 3. DATA RECOVERY ENGINE (2026 FIX)
-@st.cache_data(ttl=600)
+# --- THE CACHE FIX ---
+# We use cache_resource because Ticker objects are NOT serializable
+@st.cache_resource(ttl=3600)
 def fetch_terminal_data(symbol):
-    stock = yf.Ticker(symbol)
-    # yfinance often returns empty if multi-index isn't handled
-    return stock
+    try:
+        return yf.Ticker(symbol)
+    except Exception as e:
+        st.error(f"CONNECTION_FAILURE: {str(e)}")
+        return None
 
-stock = fetch_terminal_data(ticker)
-info = stock.info
+ticker_symbol = st.session_state.get('ticker', 'NVDA')
+stock = fetch_terminal_data(ticker_symbol)
 
-st.markdown(f"<h1>// FINANCIAL_INTELLIGENCE_LATTICE: {ticker}</h1>", unsafe_allow_html=True)
+# --- THE DATA DECRYPTION ENGINE ---
+def clean_df(df):
+    """Flattens 2026 Multi-Index tables so they actually work"""
+    if df is None or df.empty:
+        return None
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(-1)
+    return df
 
-# 4. INFINITE DATA HUBS (5000+ Points Capability)
-m_tabs = st.tabs(["STATEMENTS", "RATIOS", "OWNERSHIP", "ESG", "OPTIONS", "FIXED_INCOME", "RAW_STREAM"])
-
-# --- HUB 1: STATEMENTS (INCOME/BALANCE/CASH) ---
-with m_tabs[0]:
-    s_tabs = st.tabs(["INCOME", "BALANCE", "CASH_FLOW"])
-    # 15+ Charts per Statement
-    for i, (tab, df) in enumerate(zip(s_tabs, [stock.income_stmt, stock.balance_sheet, stock.cashflow])):
-        with tab:
-            if df is not None and not df.empty:
-                # Transpose for "Fly" vertical charting
-                metrics = df.index.tolist()
-                for chunk in range(0, len(metrics), 3):
-                    cols = st.columns(3)
-                    for j, metric in enumerate(metrics[chunk:chunk+3]):
-                        with cols[j]:
-                            st.markdown("<div class='bento-card'>", unsafe_allow_html=True)
-                            fig = px.area(df.loc[metric], title=f"{metric}_TREND", template="plotly_dark")
-                            fig.update_layout(height=250, margin=dict(l=0,r=0,t=40,b=0), xaxis_visible=False)
-                            st.plotly_chart(fig, use_container_width=True)
-                            st.markdown("</div>", unsafe_allow_html=True)
-
-# --- HUB 2: RATIOS (Hundreds of Data Points) ---
-with m_tabs[1]:
-    # Group all 200+ info keys into sub-tabs automatically
-    all_keys = sorted(info.keys())
-    for chunk in range(0, len(all_keys), 20):
-        with st.expander(f"RATIO_BLOCK_{chunk//20 + 1}"):
-            cols = st.columns(4)
-            for j, k in enumerate(all_keys[chunk:chunk+20]):
-                with cols[j % 4]:
-                    st.markdown(f"""
-                    <div class='bento-card'>
-                        <p style='color:#888; font-size:10px;'>{k.upper()}</p>
-                        <p class='metric-value'>{info.get(k, 'N/A')}</p>
-                    </div>""", unsafe_allow_html=True)
-
-# --- HUB 4: ESG & SUSTAINABILITY (The 2026 Fix) ---
-with m_tabs[3]:
-    st.markdown("### // ESG_SCORECARD")
-    # Fix: yfinance.sustainability is often blocked; searching in info dict
-    esg_data = {k: info[k] for k in info if 'esg' in k.lower() or 'carbon' in k.lower()}
-    if esg_data:
-        st.write(esg_data)
+# --- THE "MORE DATA" GRID ENGINE ---
+def render_infinite_grid(df, title):
+    df = clean_df(df)
+    if df is not None:
+        st.markdown(f"### // {title}_MATRIX")
+        metrics = df.index.tolist()
+        
+        # We generate A TON of charts in a grid
+        for i in range(0, len(metrics), 3):
+            cols = st.columns(3)
+            for j, metric in enumerate(metrics[i:i+3]):
+                with cols[j]:
+                    with st.container(border=True):
+                        st.markdown(f"<span style='color:#888; font-size:10px;'>{metric}</span>", unsafe_allow_html=True)
+                        # Plotting every individual line item as a 'Fly' Area Chart
+                        fig = px.area(df.loc[metric], template="plotly_dark", color_discrete_sequence=['#00ff41'])
+                        fig.update_layout(height=150, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False)
+                        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
     else:
-        st.warning("ESG_SIGNAL_ENCRYPTED: Providers are currently throttling sustainability feeds.")
+        st.warning(f"SIGNAL_OFFLINE: {title}")
+
+# --- THE MAJESTIC HUB ---
+st.markdown(f"<h1>// SOVEREIGN_CORE: {ticker_symbol}</h1>", unsafe_allow_html=True)
+
+tab_names = ["INCOME", "BALANCE", "CASHFLOW", "RATIOS", "ESG", "HOLDERS", "OPTIONS", "NEWS"]
+tabs = st.tabs(tab_names)
+
+with tabs[0]: render_infinite_grid(stock.income_stmt, "INCOME")
+with tabs[1]: render_infinite_grid(stock.balance_sheet, "BALANCE")
+with tabs[2]: render_infinite_grid(stock.cashflow, "CASHFLOW")
+
+with tabs[3]: # RATIOS (The 'Hundreds of numbers' request)
+    inf = stock.info
+    # Pulling EVERY single key in the dictionary
+    all_keys = sorted(inf.keys())
+    for chunk in range(0, len(all_keys), 20):
+        with st.expander(f"DATA_PACK_{chunk//20 + 1}"):
+            cols = st.columns(4)
+            for k_idx, key in enumerate(all_keys[chunk:chunk+20]):
+                cols[k_idx % 4].metric(key[:15], f"{inf.get(key, 'N/A')}")
