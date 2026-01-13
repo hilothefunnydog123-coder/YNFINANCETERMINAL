@@ -1,5 +1,30 @@
 import streamlit as st
 import yfinance as yf
+def inject_terminal_css():
+    st.markdown("""
+        <style>
+        /* Main Background */
+        .stApp { background-color: #050505; color: #e0e0e0; }
+        
+        /* Majestic Glass Card */
+        div[data-testid="stMetric"] {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            padding: 15px; border-radius: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.05);
+        }
+        
+        /* Techy Typography */
+        h1, h2, h3 { font-family: 'Courier New', monospace; color: #00ff41 !important; text-shadow: 0 0 8px #00ff41; }
+        .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+        .stTabs [data-baseweb="tab"] {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px 5px 0 0; padding: 10px 20px; color: #888;
+        }
+        .stTabs [aria-selected="true"] { background-color: rgba(0, 255, 65, 0.1) !important; color: #00ff41 !important; border-bottom: 2px solid #00ff41 !important; }
+        </style>
+    """, unsafe_allow_html=True)
 
 # Global majestic theme logic
 st.set_page_config(layout="wide", page_title="SOVEREIGN_V46")
