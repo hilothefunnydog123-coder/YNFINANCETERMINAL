@@ -2,60 +2,58 @@ import streamlit as st
 import yfinance as yf
 import plotly.express as px
 
-# 1. DATA SCRAPER
+# 1. STYLE INJECTION
+st.markdown("""
+<style>
+    .bento-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(0, 255, 65, 0.2);
+        padding: 20px; border-radius: 12px;
+        backdrop-filter: blur(10px); margin-bottom: 15px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 2. DATA LOAD
 ticker = st.session_state.get('ticker', 'NVDA')
 stock = yf.Ticker(ticker)
+info = stock.info
 
-# 2. MAJESTIC OWNERSHIP HUB (Category 8)
-def render_ownership_hub():
-    st.markdown("### // OWNERSHIP_DYNAMICS_v46")
-    try:
-        # yfinance.major_holders structure varies; we normalize it
-        holders = stock.major_holders
-        
-        # FIX: Ensure we have valid columns for the pie chart
-        if holders is not None and not holders.empty:
-            # Normalize column names for plotly
-            holders.columns = ["Value", "Type"]
-            holders["Value"] = holders["Value"].str.replace('%', '').astype(float)
-            
-            fig_pie = px.pie(
-                holders, 
-                values="Value", 
-                names="Type", 
-                title=f"OWNERSHIP_MIX: {ticker}",
-                template="plotly_dark",
-                color_discrete_sequence=px.colors.sequential.Greens_r
-            )
-            fig_pie.update_layout(showlegend=False, height=400)
-            st.plotly_chart(fig_pie, use_container_width=True)
-        else:
-            st.warning("OWNERSHIP_SIGNAL_OFFLINE")
-    except Exception as e:
-        st.error(f"DATA_LINK_FAILURE: {str(e)}")
+st.markdown(f"<h1 style='color:#00ff41;'>// TERMINAL_MAINFRAME: {ticker}</h1>", unsafe_allow_html=True)
 
-# 3. THE 5000+ DATA POINT MATRIX
-m_tabs = st.tabs(["IDENTIFICATION", "FUNDAMENTALS", "RATIOS", "ESTIMATES", "OWNERSHIP"])
+# 3. DYNAMIC TAB GENERATOR (5000+ Potential Data Points)
+# We group the hundreds of keys in info into logical "Super-Tabs"
+data_categories = {
+    "VALUATION": ["trailingPE", "forwardPE", "priceToBook", "enterpriseToEbitda", "pegRatio"],
+    "PROFITABILITY": ["profitMargins", "operatingMargins", "returnOnEquity", "returnOnAssets"],
+    "CASH_FLOW": ["operatingCashflow", "freeCashflow", "totalCash", "totalDebt"],
+    "FORECASTS": ["targetMedianPrice", "targetMeanPrice", "numberOfAnalystOpinions"],
+    "GOVERNANCE": ["auditRisk", "boardRisk", "compensationRisk", "shareHolderRightsRisk"]
+}
 
-with m_tabs[2]: # FUNDAMENTALS (Cat 5)
-    st.markdown("### // CORE_STATEMENTS_LATTICE")
-    # Multi-tab deep dive for 15+ individual charts
-    f_tabs = st.tabs(["INCOME", "BALANCE", "CASH_FLOW"])
-    
-    with f_tabs[0]:
-        income = stock.income_stmt
-        # Generate fly-looking charts for every line item
+# Create Super-Tabs
+super_tabs = st.tabs(list(data_categories.keys()) + ["ALL_METRICS_STREAM"])
+
+for i, (category, keys) in enumerate(data_categories.items()):
+    with super_tabs[i]:
+        st.markdown(f"### // {category}_DYNAMICS")
+        # Create a Bento Grid for these keys
         cols = st.columns(3)
-        for i, metric in enumerate(income.index[:15]):
-            with cols[i % 3]:
-                st.markdown(f"<div style='border:1px solid #00ff41; padding:10px; border-radius:10px;'>", unsafe_allow_html=True)
-                # Plotly Bar Chart for each individual metric
-                fig = px.bar(income.loc[metric], title=metric, template="plotly_dark")
-                fig.update_layout(height=180, margin=dict(l=0,r=0,t=30,b=0), xaxis_title=None, yaxis_title=None)
-                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        for idx, key in enumerate(keys):
+            with cols[idx % 3]:
+                st.markdown(f"<div class='bento-card'>", unsafe_allow_html=True)
+                st.metric(key.upper(), info.get(key, 'N/A'))
+                # Optional: Add a mini-chart for each metric if historical exists
                 st.markdown("</div>", unsafe_allow_html=True)
 
-with m_tabs[4]: # OWNERSHIP (Cat 8)
-    render_ownership_hub()
-    st.markdown("#### // TOP_INSTITUTIONAL_HOLDERS")
-    st.dataframe(stock.institutional_holders, use_container_width=True)
+# 4. THE "INFINITE" STREAM TAB
+with super_tabs[-1]:
+    st.markdown("### // RAW_SIGNAL_STREAM")
+    # This loop generates a tab for EVERY single key in the dictionary
+    all_keys = list(info.keys())
+    # To prevent browser crash, we show them in an expandable grid
+    for start in range(0, len(all_keys), 20):
+        with st.expander(f"SIGNAL_BLOCK_{start//20 + 1}"):
+            cols = st.columns(4)
+            for j, k in enumerate(all_keys[start:start+20]):
+                cols[j % 4].write(f"**{k}**: {info.get(k)}")
