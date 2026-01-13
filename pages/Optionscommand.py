@@ -13,7 +13,6 @@ st.markdown("""
         background: rgba(0, 255, 65, 0.03); border: 1px solid rgba(0, 255, 65, 0.2); 
         padding: 20px; border-radius: 15px; margin-bottom: 20px;
     }
-    .glitch-label { font-family: monospace; color: #00ff41; font-size: 14px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -22,64 +21,50 @@ stock = yf.Ticker(ticker)
 
 st.markdown(f"<h1 style='color:#00ff41; font-family:monospace;'>// OPTIONS_COMMAND: {ticker}</h1>", unsafe_allow_html=True)
 
-# 2. SELECT EXPIRATION CYCLE
+# 2. SELECT EXPIRATION
 expirations = stock.options
 if expirations:
     selected_date = st.selectbox("SELECT_EXPIRATION_DATE", expirations)
     
     with st.spinner("DECODING_OPTION_CHAIN..."):
-        # Fetch the chain for the selected date
         chain = stock.option_chain(selected_date)
-        calls = chain.calls
-        puts = chain.puts
+        calls, puts = chain.calls, chain.puts
 
-    # 3. OPEN INTEREST HEATMAP
-    # We sort by Open Interest to show the most important "Battleground" strikes first
+    # 3. OPEN INTEREST VISUALIZER
     top_calls = calls.sort_values("openInterest", ascending=False).head(15)
     top_puts = puts.sort_values("openInterest", ascending=False).head(15)
 
     c1, c2 = st.columns(2)
-
     with c1:
-        st.markdown("<div class='options-metric-card'><span class='glitch-label'>CALL_SIDE_DOMINANCE (OI)</span></div>", unsafe_allow_html=True)
-        fig_calls = px.bar(top_calls, x="strike", y="openInterest", 
-                           title="TOP_CALL_STRIKES_BY_OPEN_INTEREST",
+        fig_calls = px.bar(top_calls, x="strike", y="openInterest", title="TOP_CALL_STRIKES",
                            template="plotly_dark", color_discrete_sequence=['#00ff41'])
         st.plotly_chart(fig_calls, use_container_width=True)
-
     with c2:
-        st.markdown("<div class='options-metric-card'><span class='glitch-label'>PUT_SIDE_PROTECTION (OI)</span></div>", unsafe_allow_html=True)
-        fig_puts = px.bar(top_puts, x="strike", y="openInterest", 
-                          title="TOP_PUT_STRIKES_BY_OPEN_INTEREST",
+        fig_puts = px.bar(top_puts, x="strike", y="openInterest", title="TOP_PUT_STRIKES",
                           template="plotly_dark", color_discrete_sequence=['#ff4b4b'])
         st.plotly_chart(fig_puts, use_container_width=True)
 
-    # 4. VOLATILITY SKEW & LIQUIDITY TABLE
+    # 4. THE FIX: STYLING WITHOUT MATPLOTLIB
     st.markdown("### // DEEP_CHAIN_ANALYSIS")
-    
-    # Combine and add a 'Type' flag for a unified view
-    calls['Type'] = 'CALL'
-    puts['Type'] = 'PUT'
+    calls['Type'], puts['Type'] = 'CALL', 'PUT'
     combined = pd.concat([calls, puts])
-    
-    # Sorting by Volume to show where the current action is happening
     liquid_strikes = combined.sort_values("volume", ascending=False).head(20)
-    
-    st.dataframe(
-        liquid_strikes[['Type', 'strike', 'lastPrice', 'change', 'percentChange', 'volume', 'openInterest', 'impliedVolatility']]
-        .style.background_gradient(cmap='Greens', subset=['volume', 'openInterest'])
-        .format({'impliedVolatility': '{:.2%}', 'percentChange': '{:+.2f}%'}),
-        use_container_width=True
+
+    # We use column_config to create bars instead of background gradients
+    st.data_editor(
+        liquid_strikes[['Type', 'strike', 'lastPrice', 'change', 'percentChange', 'volume', 'openInterest', 'impliedVolatility']],
+        column_config={
+            "volume": st.column_config.ProgressColumn("VOLUME_FLOW", format="%d", min_value=0, max_value=int(liquid_strikes['volume'].max())),
+            "openInterest": st.column_config.ProgressColumn("OPEN_INT", format="%d", min_value=0, max_value=int(liquid_strikes['openInterest'].max())),
+            "impliedVolatility": st.column_config.NumberColumn("IV", format="%.2f%%"),
+            "percentChange": st.column_config.NumberColumn("CHG%", format="%.2f%%")
+        },
+        use_container_width=True,
+        disabled=True, # Keeps it looking like a dataframe
+        hide_index=True
     )
 
-    # 5. AI ORACLE INSIGHT
-    st.markdown(f"""
-    <div style='background:rgba(0, 255, 65, 0.05); padding:20px; border-radius:15px; border-left: 5px solid #00ff41;'>
-        <b style='color:#00ff41;'>ORACLE_INSIGHT:</b> Analysis of the {selected_date} chain shows high Open Interest concentration at the 
-        <b>${top_calls['strike'].iloc[0]}</b> Call and <b>${top_puts['strike'].iloc[0]}</b> Put levels. These are your primary 
-        resistance and support 'magnets' for this expiration cycle.
-    </div>
-    """, unsafe_allow_html=True)
-
+    # 5. ORACLE INSIGHT
+    st.info(f"ORACLE_INSIGHT: The {selected_date} chain shows maximum friction at ${top_calls['strike'].iloc[0]} (Calls) and ${top_puts['strike'].iloc[0]} (Puts).")
 else:
-    st.warning("SIGNAL_LOST: No options data available for this ticker.")
+    st.warning("SIGNAL_LOST: No options found.")
