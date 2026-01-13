@@ -1,6 +1,35 @@
 import streamlit as st
 import streamlit.components.v1 as components
+def apply_majestic_theme():
+    st.markdown("""
+        <style>
+        /* Global Background & Text */
+        .stApp { background-color: #0d0d0d; color: #ffffff; }
+        
+        /* Glassmorphism Metric Cards */
+        [data-testid="stMetric"] {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.05);
+        }
+        
+        /* Neon Glow Titles */
+        .terminal-header {
+            color: #00ff41;
+            text-shadow: 0 0 10px #00ff41;
+            font-family: 'Courier New', monospace;
+            border-bottom: 2px solid #00ff41;
+            padding-bottom: 10px;
+        }
 
+        /* Cyberpunk Divider */
+        hr { border: 0; height: 1px; background: linear-gradient(to right, #00ff41, transparent); }
+        </style>
+    """, unsafe_allow_html=True)
+
+apply_majestic_theme()
 # 1. SESSION SAFETY
 if 'ticker' not in st.session_state:
     st.session_state.ticker = "NVDA"
