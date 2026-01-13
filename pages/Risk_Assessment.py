@@ -2,24 +2,55 @@ import streamlit as st
 import yfinance as yf
 import google.generativeai as genai
 
-# 1. STYLE & LAYOUT
+# 1. THE LAYOUT ENGINE
 st.set_page_config(layout="wide", page_title="RISK_AUDIT_2026")
 
+# 2. MAJESTIC RISK CSS
 st.markdown("""
 <style>
-    [data-testid="stAppViewBlockContainer"] { padding-top: 1rem; max-width: 95% !important; }
-    .risk-card {
+    [data-testid="stAppViewBlockContainer"] { padding-top: 1rem; max-width: 98% !important; }
+    
+    .risk-bento-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .audit-card {
         background: rgba(255, 75, 75, 0.05);
         border: 1px solid rgba(255, 75, 75, 0.2);
-        padding: 25px; border-radius: 15px; margin-bottom: 20px;
+        padding: 30px;
+        border-radius: 25px;
+        backdrop-filter: blur(10px);
     }
-    .safe-card {
-        background: rgba(0, 255, 65, 0.05);
-        border: 1px solid rgba(0, 255, 65, 0.2);
-        padding: 25px; border-radius: 15px; margin-bottom: 20px;
+    
+    .severity-pill {
+        background: #ff4b4b;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-bottom: 15px;
+        display: inline-block;
     }
-    .risk-header { color: #ff4b4b; font-family: monospace; font-weight: bold; }
-    .audit-text { font-family: 'Source Serif Pro', serif; line-height: 1.6; color: #eee; }
+    
+    .audit-title {
+        color: #ff4b4b;
+        font-family: 'Playfair Display', serif;
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+    
+    .audit-body {
+        color: #e0e0e0;
+        font-family: 'Source Serif Pro', serif;
+        line-height: 1.6;
+        font-size: 17px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -27,56 +58,58 @@ ticker = st.session_state.get('ticker', 'NVDA')
 stock = yf.Ticker(ticker)
 info = stock.info
 
-st.markdown(f"<h1 style='color:#ff4b4b; font-family:monospace;'>// RISK_ASSESSMENT: {ticker}</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='color:#ff4b4b; font-family:monospace;'>// RISK_SURVEILLANCE: {ticker}</h1>", unsafe_allow_html=True)
 
-# 2. QUANT RISK METRICS
-c1, c2, c3 = st.columns(3)
-
-with c1:
-    debt_equity = info.get('debtToEquity', 0)
-    st.metric("DEBT_TO_EQUITY", f"{debt_equity:.2f}", delta="HIGH_LEVERAGE" if debt_equity > 100 else "STABLE", delta_color="inverse")
-
-with c2:
-    short_ratio = info.get('shortRatio', 0)
-    st.metric("SHORT_RATIO", f"{short_ratio:.2f}", delta="SQUEEZE_RISK" if short_ratio > 5 else "NORMAL", delta_color="inverse")
-
-with c3:
-    current_ratio = info.get('currentRatio', 0)
-    st.metric("CURRENT_RATIO (LIQUIDITY)", f"{current_ratio:.2f}", delta="CASH_POOR" if current_ratio < 1 else "LIQUID")
-
-# 3. THE AI SOVEREIGN AUDIT (Gemini 3 Flash)
-st.markdown("### // AI_SOVEREIGN_AUDIT")
-
-def run_risk_audit(ticker, data):
+# 3. AI AUDITOR (Updated to Gemini 2.5 Flash)
+def run_ai_audit(ticker, data):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel("gemini-1.5-flash") # 2026 Stable
+        # FIX: Updated to 2026 Stable Model
+        model = genai.GenerativeModel("gemini-2.5-flash") 
+        
         prompt = f"""
-        Act as a Senior Risk Officer. Perform a brutal 'Red Flag' audit for {ticker}.
-        Context: Debt/Equity {data.get('debtToEquity')}, Profit Margin {data.get('profitMargins')}, 
-        Beta {data.get('beta')}, and Price-to-Book {data.get('priceToBook')}.
-        Identify 3 specific potential failure points or 'Red Flags'. 
-        Be captivating, professional, and concise (100 words).
+        Act as a Quantitative Risk Auditor. Perform a brutal 'Red Flag' scan for {ticker}.
+        Financial Context: Debt/Equity {data.get('debtToEquity')}, Profit Margin {data.get('profitMargins')}, 
+        Quick Ratio {data.get('quickRatio')}, Beta {data.get('beta')}.
+        Identify the single biggest threat to this company's survival or stock price in the next 12 months.
+        Tone: Sophisticated, skeptical, and razor-sharp. Max 80 words.
         """
-        return model.generate_content(prompt).text
+        response = model.generate_content(prompt)
+        return response.text
     except Exception as e:
-        return f"AUDIT_SIGNAL_INTERRUPTED: {str(e)}"
+        return f"AUDIT_ERROR: Model connection timed out. Manual review required. ({str(e)})"
 
-with st.spinner("INITIATING_DEEP_SCAN..."):
-    audit_report = run_risk_audit(ticker, info)
+# --- THE UI RENDER ---
 
-# Visual conditional formatting for the AI report
+c1, c2, c3, c4 = st.columns(4)
+with c1:
+    st.metric("DEBT_LOAD", f"{info.get('debtToEquity', 0):.2f}", "CRITICAL" if info.get('debtToEquity', 0) > 100 else "STABLE", delta_color="inverse")
+with c2:
+    st.metric("CASH_RUNWAY", f"{info.get('quickRatio', 0):.2f}", "LOW_LIQUIDITY" if info.get('quickRatio', 0) < 1 else "SAFE", delta_color="normal")
+with c3:
+    st.metric("BETA_VOL", f"{info.get('beta', 0):.2f}", "HYPER_VOL" if info.get('beta', 0) > 1.5 else "STABLE", delta_color="inverse")
+with c4:
+    st.metric("SHORT_INT", f"{info.get('shortRatio', 0):.2f}", "SQUEEZE_PROB" if info.get('shortRatio', 0) > 8 else "LOW", delta_color="normal")
+
+st.markdown("---")
+
+# The AI Bento Card
+with st.spinner("INITIATING_DEEP_AI_SCAN..."):
+    audit_finding = run_ai_audit(ticker, info)
+
 st.markdown(f"""
-    <div class="risk-card">
-        <div class="risk-header">CRITICAL_AUDIT_FINDINGS:</div>
-        <div class="audit-text">{audit_report}</div>
+    <div class="audit-card">
+        <div class="severity-pill">High Severity Alert</div>
+        <div class="audit-title">The Sovereign Risk Verdict</div>
+        <div class="audit-body">{audit_finding}</div>
     </div>
 """, unsafe_allow_html=True)
 
-# 4. INSIDER ALERTS (Category 15)
-st.markdown("### // INSIDER_VELOCITY")
+# Insider Signals (Replaces the spreadsheet with clean tags)
+st.markdown("### // INSIDER_VELOCITY_ALERTS")
 insiders = stock.insider_transactions
 if insiders is not None and not insiders.empty:
-    st.dataframe(insiders.head(10), use_container_width=True)
+    for index, row in insiders.head(5).iterrows():
+        st.error(f"**{row['Text']}** | Date: {row['Start Date']} | Shares: {row['Shares']}")
 else:
-    st.info("No recent insider transactions detected in the SEC feed.")
+    st.success("CLEAR_SIGNAL: No major insider dumping detected in the 30-day window.")
