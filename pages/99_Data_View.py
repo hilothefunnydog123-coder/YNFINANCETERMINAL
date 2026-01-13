@@ -1,62 +1,43 @@
 import streamlit as st
-import pandas as pd
+import google.generativeai as genai
 
-st.set_page_config(layout="wide", page_title="TERMINAL_MATRIX_v46")
+# 1. ORACLE CONFIGURATION
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# THE SEXY MATRIX CSS
-st.markdown("""
-<style>
-    .matrix-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 20px;
-        padding: 20px;
-    }
-    .data-cell {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(0, 255, 65, 0.2);
-        padding: 20px;
-        border-radius: 15px;
-        backdrop-filter: blur(10px);
-        transition: 0.3s;
-    }
-    .data-cell:hover {
-        background: rgba(0, 255, 65, 0.05);
-        border: 1px solid #00ff41;
-        transform: translateY(-5px);
-    }
-    .cell-label { color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-    .cell-val { color: #00ff41; font-size: 20px; font-weight: bold; font-family: 'Courier New', monospace; }
-</style>
-""", unsafe_allow_html=True)
+def get_oracle_insight(metric_name, value, ticker):
+    prompt = f"""
+    You are a world-class hedge fund analyst. Explain the financial metric '{metric_name}' 
+    which currently stands at {value} for {ticker}. 
+    1. Define it simply but powerfully.
+    2. Explain what a move in this number could lead to (the 'So What?').
+    3. Make it captivating and high-stakes. Use terminal-style language.
+    Keep it under 100 words.
+    """
+    response = model.generate_content(prompt)
+    return response.text
 
-# LOAD THE UNENDING DATA
-data = st.session_state.get('matrix_data', None)
-label = st.session_state.get('matrix_label', 'UNKNOWN_STREAM')
+# 2. SESSION STATE FOR PERSISTENCE
+if 'oracle_response' not in st.session_state:
+    st.session_state.oracle_response = "SELECT A DATA POINT TO DECODE THE SIGNAL..."
 
-st.markdown(f"<h1 style='color:#00ff41; text-shadow:0 0 10px #00ff41;'>// DEEP_DIVE_MATRIX: {label}</h1>", unsafe_allow_html=True)
+# 3. MAJESTIC GRID WITH CLICKABLE TILES
+st.markdown(f"<h1>// DATA_MATRIX_ORACLE: {st.session_state.get('matrix_label')}</h1>", unsafe_allow_html=True)
 
-if st.button("<< RETURN_TO_HUB"):
-    st.switch_page("pages/02_Financials.py") # VERIFY THIS FILENAME MATCHES EXACTLY
+# SIDEBAR FOR AI INSIGHTS
+with st.sidebar:
+    st.markdown("<h2 style='color:#00ff41;'>// AI_ORACLE_FEED</h2>", unsafe_allow_html=True)
+    st.markdown(f"<div class='summary-box'>{st.session_state.oracle_response}</div>", unsafe_allow_html=True)
 
-if data is not None:
-    # We take the latest snapshot (first column)
-    latest = data.iloc[:, 0]
-    
-    st.markdown("<div class='matrix-container'>", unsafe_allow_html=True)
-    for k, v in latest.items():
-        # Smart formatting for the unending data
-        if isinstance(v, (int, float)):
-            v_str = f"{v:,.2f}"
-        else:
-            v_str = str(v)
-            
-        st.markdown(f"""
-            <div class='data-cell'>
-                <div class='cell-label'>{k}</div>
-                <div class='cell-val'>{v_str}</div>
-            </div>
-        """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-else:
-    st.error("NO_DATA_STREAM_FOUND")
+# THE DATA LATTICE
+df = st.session_state.get('matrix_data')
+if df is not None:
+    latest = df.iloc[:, 0]
+    cols = st.columns(4)
+    for i, (k, v) in enumerate(latest.items()):
+        with cols[i % 4]:
+            # Each tile is now a button that triggers Gemini
+            if st.button(f"{k}\n{v:,.2f}" if isinstance(v, (int, float)) else f"{k}\n{v}", key=f"btn_{i}"):
+                with st.spinner(f"DECODING {k}..."):
+                    st.session_state.oracle_response = get_oracle_insight(k, v, "THIS_TICKER")
+                    st.rerun() # Refresh to show response in sidebar
