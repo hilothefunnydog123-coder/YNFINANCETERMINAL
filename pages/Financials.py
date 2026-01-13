@@ -25,7 +25,7 @@ st.markdown("""
 ticker = st.session_state.get('ticker', 'NVDA')
 stock = yf.Ticker(ticker)
 
-# 2. DATA BYPASS ENGINE (Flattening Multi-Index)
+# 2. DATA DECRYPTION (Multi-Index Bypass)
 def decrypt_signal(data):
     if isinstance(data, dict): return pd.DataFrame.from_dict(data, orient='index', columns=['Value'])
     if isinstance(data, pd.DataFrame) and not data.empty:
@@ -43,17 +43,12 @@ def render_blade(raw_data, label, intel):
         st.markdown(f"<h2 class='glow-header'>// {label}_INTELLIGENCE</h2>", unsafe_allow_html=True)
         c1, c2 = st.columns([2, 1])
         with c1:
-            # Chart 1: Primary Velocity
-            fig1 = px.area(df.iloc[0], title="PRIMARY_SIGNAL", template="plotly_dark", color_discrete_sequence=['#00ff41'])
-            fig1.update_layout(height=250, margin=dict(l=0,r=0,t=30,b=0))
-            st.plotly_chart(fig1, use_container_width=True)
-            # Chart 2: Momentum Delta
-            if df.shape[0] > 1:
-                fig2 = px.line(df.iloc[1], title="MOMENTUM_DELTA", template="plotly_dark", color_discrete_sequence=['#00f0ff'])
-                fig2.update_layout(height=150, margin=dict(l=0,r=0,t=30,b=0))
-                st.plotly_chart(fig2, use_container_width=True)
+            # Multi-Chart Plot: Primary vs Secondary
+            fig = px.area(df.iloc[:2].T, template="plotly_dark", color_discrete_sequence=['#00ff41', '#00f0ff'])
+            fig.update_layout(height=350, margin=dict(l=0,r=0,t=30,b=0), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+            st.plotly_chart(fig, use_container_width=True)
         with c2:
-            st.markdown(f"<div class='summary-box'><b>ANALYSIS:</b><br>{intel}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='summary-box'><b>TERMINAL_ANALYSIS:</b><br>{intel}</div>", unsafe_allow_html=True)
             if st.button(f"LAUNCH_{label}_MATRIX", use_container_width=True):
                 st.session_state.matrix_data = df
                 st.session_state.matrix_label = label
@@ -61,10 +56,10 @@ def render_blade(raw_data, label, intel):
         st.markdown("</div>", unsafe_allow_html=True)
 
 # 4. TABS
-t1, t2, t3, t4 = st.tabs(["INCOME", "BALANCE", "CASHFLOW", "RATIOS_&_ESG"])
-with t1: render_blade(stock.income_stmt, "INCOME", "Revenue velocity is at peak-tier levels. Margin expansion confirmed.")
-with t2: render_blade(stock.balance_sheet, "BALANCE", "Asset liquidity is high. Safety moat remains robust.")
-with t3: render_blade(stock.cashflow, "CASHFLOW", "Operational efficiency is driving free cash flow acceleration.")
+t1, t2, t3, t4 = st.tabs(["INCOME", "BALANCE", "CASHFLOW", "QUANT_ESG"])
+with t1: render_blade(stock.income_stmt, "INCOME", "Revenue velocity at peak. Margin expansion confirmed.")
+with t2: render_blade(stock.balance_sheet, "BALANCE", "Safety moat robust. Asset liquidity high.")
+with t3: render_blade(stock.cashflow, "CASHFLOW", "Operational efficiency driving FCF acceleration.")
 with t4: 
     combined = {**stock.info, **(stock.sustainability.to_dict() if stock.sustainability is not None else {})}
-    render_blade(combined, "QUANTITATIVE", "ESG risk and Valuation metrics decoded from provider feeds.")
+    render_blade(combined, "QUANT_ESG", "Decoded ESG risk and Valuation multiples.")
