@@ -2,25 +2,26 @@ import streamlit as st
 import pandas as pd
 import google.generativeai as genai
 
-# 1. THE AI BRAIN FIX (Stable 2026 Model Mapping)
+# 1. THE 2026 AI BRAIN (Multi-Model Fallback)
 def trigger_oracle(metric, val):
     if "GEMINI_API_KEY" not in st.secrets:
         st.session_state.oracle_msg = "SIGNAL_LOST: KEY_NOT_FOUND"
         return
     
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        # Use 'gemini-1.5-flash-latest' to bypass v1beta 404s
-        model = genai.GenerativeModel("gemini-1.5-flash-latest")
-        prompt = f"As a Quant Manager, explain {metric} ({val}) for {st.session_state.get('ticker')}. High-stakes, captivating, 75 words."
-        st.session_state.oracle_msg = model.generate_content(prompt).text
-    except Exception as e:
-        # Fallback to a secondary model name if the first fails
+    # 2026 Active Models
+    models_to_try = ["gemini-2.5-flash", "gemini-3-flash-preview", "gemini-2.0-flash-001"]
+    
+    for model_id in models_to_try:
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            st.session_state.oracle_msg = model.generate_content(prompt).text
+            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+            model = genai.GenerativeModel(model_id)
+            prompt = f"As a Quant Manager, explain {metric} ({val}) for {st.session_state.get('ticker')}. High-stakes, captivating, 75 words."
+            response = model.generate_content(prompt)
+            st.session_state.oracle_msg = response.text
+            return # Exit on success
         except:
-            st.session_state.oracle_msg = f"ORACLE_OFFLINE: {str(e)}"
+            continue
+    st.session_state.oracle_msg = "CRITICAL_FAILURE: All 2026 endpoints offline."
 
 # 2. SESSION STATE
 if 'oracle_msg' not in st.session_state: st.session_state.oracle_msg = "SELECT SIGNAL..."
@@ -32,10 +33,11 @@ with st.sidebar:
     st.markdown("<h2 style='color:#00ff41;'>// AI_ORACLE_FEED</h2>", unsafe_allow_html=True)
     st.markdown(f"<div style='border:1px solid #00ff41; padding:15px; border-radius:10px; background:rgba(0,255,65,0.05); color:#fff; font-family:monospace;'>{st.session_state.oracle_msg}</div>", unsafe_allow_html=True)
 
+# 3. DATA VIEW ENGINE
 df = st.session_state.get('matrix_data')
 if df is not None:
     latest = df.iloc[:, 0]
-    # SORT BY IMPORTANCE: Largest numbers first
+    # SORT BY IMPORTANCE: Biggest numbers first
     items = sorted(list(latest.items()), key=lambda x: abs(x[1]) if isinstance(x[1], (int, float)) else 0, reverse=True)
 
     for i, (k, v) in enumerate(items):
