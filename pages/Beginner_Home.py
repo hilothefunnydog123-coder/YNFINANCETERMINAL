@@ -1,73 +1,100 @@
 import streamlit as st
+import yfinance as yf
+import pandas as pd
 import plotly.graph_objects as go
+from PIL import Image
 import google.generativeai as genai
 
-# 1. VIBRANT THEME INJECTION
-def apply_vibrant_theme():
-    st.markdown("""
-    <style>
-        .stApp { background: #f0f2f6; color: #1e1e1e; }
-        [data-testid="stSidebar"] { background-color: #ffffff; }
-        .st-key-card {
-            background: #ffffff; border-radius: 20px;
-            padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            margin-bottom: 20px; border: none;
-        }
-        .rank-badge {
-            background: linear-gradient(90deg, #6C5CE7, #a29bfe);
-            color: white; padding: 4px 12px; border-radius: 50px;
-            font-size: 12px; font-weight: bold;
-        }
-        h1, h2, h3 { color: #2d3436; font-family: 'Inter', sans-serif; }
-    </style>
-    """, unsafe_allow_html=True)
-
-# 2. THE TOP 500 RANKER (Section 1)
-def render_top_500():
-    st.markdown("## 🏆 Global Top 500: Today's Best Buys")
-    # Simulation of AI Ranking Logic
-    recommendations = [
-        {"rank": 1, "ticker": "NVDA", "score": "98/100", "reason": "AI Infrastructure dominance & 40% margin growth."},
-        {"rank": 2, "ticker": "MSFT", "score": "94/100", "reason": "Cloud integration and enterprise AI leadership."},
-        {"rank": 3, "ticker": "ASML", "score": "92/100", "reason": "Monopoly on EUV lithography for next-gen chips."}
-    ]
+# 1. VIBRANT THEME LOCK
+st.markdown("""
+<style>
+    .stApp { background-color: #FFFFFF !important; color: #1E293B !important; }
+    [data-testid="stHeader"], [data-testid="stSidebar"] { background-color: #F8FAFC !important; }
     
-    for rec in recommendations:
-        with st.container(border=True):
-            c1, c2, c3 = st.columns([1, 4, 2])
-            c1.markdown(f"<div class='rank-badge'>#{rec['rank']}</div>", unsafe_allow_html=True)
-            c2.markdown(f"**{rec['ticker']}** — {rec['reason']}")
-            c3.metric("AI Score", rec['score'])
-
-# 3. PORTFOLIO SCANNER (Section 2)
-def render_portfolio_scanner():
-    st.markdown("## 🔍 AI Portfolio Health-Check")
-    st.info("AI Analysis: Your portfolio is 70% Tech. We recommend adding **Healthcare (VHT)** or **Real Estate (VNQ)** to lower volatility.")
+    /* Global Text Correction: Darker for readability */
+    h1, h2, h3, h4, p, span, div, label { color: #0F172A !important; font-family: 'Inter', sans-serif; }
     
-    col1, col2 = st.columns(2)
-    with col1:
-        st.success("✅ BUY: JNJ (Healthcare Stability)")
-    with col2:
-        st.error("⚠️ SELL: TSLA (Overextended Valuation)")
+    .yn-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border-radius: 24px;
+        padding: 25px;
+        margin-bottom: 20px;
+    }
+    .elite-badge {
+        background: linear-gradient(135deg, #6366F1 0%, #A855F7 100%);
+        color: white !important;
+        padding: 4px 14px;
+        border-radius: 50px;
+        font-weight: 800;
+        font-size: 12px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# 4. CIRCLE CHART (Section 3)
-def render_ideal_chart():
-    st.markdown("## 📊 Ideal Allocation")
-    # Donut Chart for beginners
-    labels = ['Tech', 'Healthcare', 'Finance', 'Energy', 'Cash']
-    values = [40, 20, 15, 10, 15]
+st.title("✨ YN Vanguard: Your Wealth Portal")
+
+# 2. ELITE TOP 15 RANKER (Horizontal Cards)
+st.markdown("## 🏆 The YN Elite 15")
+elite_data = [
+    {"t": "NVDA", "r": "Dominant AI Moat with surging data center revenue."},
+    {"t": "MSFT", "r": "Azure AI integration leads enterprise cloud adoption."},
+    {"t": "AAPL", "r": "Resilient ecosystem and massive services growth."},
+    {"t": "AMZN", "r": "AWS margin expansion and retail logistics efficiency."},
+    {"t": "GOOGL", "r": "DeepMind integration and Search generative dominance."}
+] # In production, loop this for 15
+
+cols = st.columns(5)
+for i, item in enumerate(elite_data):
+    with cols[i]:
+        st.markdown(f"""
+        <div class="yn-card">
+            <div class="elite-badge">RANK #{i+1}</div>
+            <h3 style="margin:10px 0;">{item['t']}</h3>
+            <p style="font-size:12px; color:#64748B !important;">{item['r']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+# 3. AI PORTFOLIO SCANNER (OCR)
+st.markdown("---")
+c_left, c_right = st.columns([1, 1])
+
+with c_left:
+    st.markdown("### 🔍 AI Portfolio Auditor")
+    uploaded_file = st.file_uploader("Drop your portfolio screenshot here", type=['png', 'jpg', 'jpeg'])
     
-    fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.6, 
-                                 marker_colors=['#6C5CE7', '#00CEC9', '#FDCB6E', '#E17055', '#B2BEC3'])])
-    fig.update_layout(showlegend=True, margin=dict(t=0, b=0, l=0, r=0))
+    if uploaded_file:
+        img = Image.open(uploaded_file)
+        st.image(img, caption="Scanning for tickers...", width=250)
+        
+        # Gemini 2.5 Flash OCR Logic
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        response = model.generate_content(["Extract stock tickers and percentages. Recommend 1 'Buy' and 1 'Sell' based on diversification.", img])
+        st.success("Analysis Complete")
+        st.markdown(f"<div class='yn-card'>{response.text}</div>", unsafe_allow_html=True)
+
+with c_right:
+    st.markdown("### 📊 My Ideal Allocation")
+    # Vibrant Donut Chart with Logos
+    labels = ['NVIDIA', 'APPLE', 'TESLA', 'BITCOIN', 'CASH']
+    values = [40, 20, 15, 15, 10]
+    colors = ['#6366F1', '#EC4899', '#F59E0B', '#10B981', '#94A3B8']
+
+    fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.75, 
+                                 marker=dict(colors=colors, line=dict(color='#FFF', width=4)))])
+    
+    # Add Central Brand Text or Logo
+    fig.add_annotation(text="YN_CORE", x=0.5, y=0.5, showarrow=False, font=dict(size=20, color="#1E293B"))
+    
+    fig.update_layout(showlegend=True, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                      margin=dict(t=0, b=0, l=0, r=0))
     st.plotly_chart(fig, use_container_width=True)
 
-# --- EXECUTION ---
-apply_vibrant_theme()
-st.title("Welcome to Vanguard AI ✨")
-st.write("Your simplified, smart path to wealth.")
-
-tab1, tab2, tab3 = st.tabs(["Recommendations", "Portfolio Scanner", "My Ideal Portfolio"])
-with tab1: render_top_500()
-with tab2: render_portfolio_scanner()
-with tab3: render_ideal_chart()
+# 4. CHATBOT CONSULTANT
+st.markdown("---")
+st.markdown("### 🤖 Vanguard Advisor")
+user_q = st.chat_input("Ask about your strategy...")
+if user_q:
+    with st.chat_message("assistant"):
+        st.write(f"Vanguard AI: To maximize {ticker}, I recommend balancing your tech exposure with some defensive sectors.")
