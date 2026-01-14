@@ -27,7 +27,7 @@ def get_global_rankings():
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         # FIX: Using specific stable production model string
-        model = genai.GenerativeModel("gemini-1.5-flash-002") 
+        model = genai.GenerativeModel("gemini-2.5-flash-002") 
         prompt = """
         Analyze global markets (NYSE, NASDAQ, LSE, TSE). 
         Rank the Top 15 stocks globally for 2026 based on AI momentum and industrial growth.
