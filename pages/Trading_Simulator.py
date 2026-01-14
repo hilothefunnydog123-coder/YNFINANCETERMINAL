@@ -60,13 +60,17 @@ ticker = st.session_state.get('ticker', 'NVDA')
 st.markdown(f"## 📈 {ticker} INTERACTIVE_CHART")
 
 # TradingView Widget with autosize enabled
+# 2. Set height variable for consistency
+CHART_HEIGHT = 650 
+
+# 3. The Fixed Widget Call
 components.html(f"""
-    <div class="tradingview-widget-container" style="height:650px; width:100%;">
+    <div class="tradingview-widget-container" style="height:{CHART_HEIGHT}px; width:100%;">
         <div id="tradingview_full"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
         <script type="text/javascript">
         new TradingView.widget({{
-            "autosize": true,
+            "autosize": true,  /* Uses 100% of parent div height */
             "symbol": "{ticker}",
             "interval": "D",
             "timezone": "Etc/UTC",
@@ -79,7 +83,7 @@ components.html(f"""
         }});
         </script>
     </div>
-""", height=660)
+""", height=CHART_HEIGHT + 10) # Streamlit height must be explicitly set
 
 # 5. POPOUT EXECUTION PANEL
 st.markdown("---")
