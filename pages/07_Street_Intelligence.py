@@ -1,106 +1,80 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import plotly.express as px
-import google.generativeai as genai
-from PIL import Image
 
-# 1. THEME & IDENTITY SETUP
-st.set_page_config(layout="wide", page_title="YN_VANGUARD_GLOBAL")
-ticker = st.session_state.get('ticker', 'NVDA')
+# 1. THE LAYOUT LOCK (Must be at the very top)
+st.set_page_config(layout="wide", page_title="STREET_INTEL_2026")
 
-# VIBRANT LIGHT THEME: White BG, Dark Navy Text
+# 2. THE ANTI-SQUISH CSS
 st.markdown("""
 <style>
-    .stApp { background-color: #FFFFFF !important; color: #0F172A !important; }
-    [data-testid="stHeader"], [data-testid="stSidebar"] { background-color: #F8FAFC !important; }
-    h1, h2, h3, h4, p, span, div, label { color: #0F172A !important; font-family: 'Inter', sans-serif; }
-    .yn-card { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 24px; padding: 25px; margin-bottom: 20px; }
+    /* Force container to use maximum width and remove padding glitch */
+    .block-container { padding-top: 1rem; max-width: 95% !important; }
+    
+    /* Grid Engine: minmax(350px, 1fr) ensures cards NEVER shrink below 350px */
+    .whale-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 25px;
+        width: 100%;
+        margin-top: 20px;
+    }
+    
+    .whale-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(0, 255, 65, 0.2);
+        padding: 22px;
+        border-radius: 18px;
+        backdrop-filter: blur(12px);
+        transition: transform 0.3s ease;
+    }
+    
+    .whale-card:hover { border-color: #00ff41; transform: translateY(-5px); }
+    .inst-name { color: #00ff41; font-size: 1.3rem; font-weight: 800; margin-bottom: 12px; height: 50px; overflow: hidden; }
+    .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-family: monospace; }
+    .label { color: #666; font-size: 0.8rem; }
+    .value { color: #fff; font-size: 0.95rem; }
+    
+    /* Progress Bar logic */
+    .bar-bg { background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; margin-top: 15px; }
+    .bar-fill { background: #00ff41; height: 100%; border-radius: 4px; box-shadow: 0 0 10px #00ff41; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("✨ YN Vanguard: Global Edition")
+# Use session state or default to NVDA
+ticker_sym = st.session_state.get('ticker', 'NVDA')
+stock = yf.Ticker(ticker_sym)
 
-# 2. THE ELITE 15 GLOBAL RANKER (Using AI Logic)
-@st.cache_data(ttl=3600)
-def get_global_rankings():
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        # FIX: Using specific stable production model string
-        model = genai.GenerativeModel("gemini-1.5-flash-002") 
-        prompt = """
-        Analyze global markets (NYSE, NASDAQ, LSE, TSE). 
-        Rank the Top 15 stocks globally for 2026 based on AI momentum and industrial growth.
-        Format as: [Ticker] | [Country] | [Strategy Reason].
-        """
-        return model.generate_content(prompt).text
-    except Exception as e:
-        return f"AI_SIGNAL_ERROR: {str(e)}"
-
-with st.expander("🌍 VIEW GLOBAL ELITE 15 RANKINGS", expanded=True):
-    st.markdown(f"<div class='yn-card'>{get_global_rankings()}</div>", unsafe_allow_html=True)
-
-# 3. THE 30-STOCK DYNAMIC PIE CHART (Now with Interactive Logic)
-st.markdown("---")
-c1, c2 = st.columns([1, 1])
-
-# Initialize portfolio data in session state if not exists
-if "portfolio_df" not in st.session_state:
-    st.session_state.portfolio_df = pd.DataFrame({
-        "Asset": [ticker, "VOO", "VTI", "BTC", "ETH"] + [f"Stock_{i}" for i in range(25)],
-        "Weight": [20, 15, 10, 5, 5] + [1.8 for _ in range(25)]
-    })
-
-with c1:
-    st.markdown("### 📊 Live Portfolio Allocation")
-    
-    # [Image of a colorful donut chart showing portfolio allocation]
-    fig = px.pie(st.session_state.portfolio_df, values='Weight', names='Asset', 
-                 hole=.6, color_discrete_sequence=px.colors.qualitative.Pastel)
-    
-    fig.update_traces(textposition='inside', textinfo='percent+label')
-    fig.update_layout(showlegend=False, margin=dict(t=0, b=0, l=0, r=0), paper_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig, use_container_width=True)
-
-# 4. VISION OCR & AI CHAT (The Brains)
-with c2:
-    st.markdown("### 🤖 YN AI Strategy & Vision")
-    
-    # VISION UPLOAD
-    uploaded_file = st.file_uploader("📷 Sync Portfolio (Upload Screenshot)", type=['png', 'jpg', 'jpeg'])
-    
-    if uploaded_file:
-        img = Image.open(uploaded_file)
-        st.image(img, caption="Portfolio detected. Syncing...", width=200)
+def render_whale_cards(df, title):
+    st.markdown(f"<h2 style='color:#00ff41;'>// {title}</h2>", unsafe_allow_html=True)
+    if df is not None and not df.empty:
+        # Data mapping fix for 2026 yfinance structures
+        df = df.rename(columns={"Holder": "H", "Shares": "S", "% Out": "P", "Value": "V", "pctHeld": "P"})
         
-        if st.button("RUN_AI_SYNC"):
-            try:
-                model = genai.GenerativeModel("gemini-1.5-flash-002")
-                # Vision-to-Data Prompt
-                response = model.generate_content(["List only the tickers and weights in this image as 'Ticker:Weight'. No other text.", img])
-                st.success("Sync Complete: Chart Updated.")
-                # Logic to parse response and update st.session_state.portfolio_df would go here
-            except Exception as e:
-                st.error(f"VISION_ERROR: {str(e)}")
+        html = "<div class='whale-grid'>"
+        for _, row in df.iterrows():
+            name = row.get('H', 'N/A')
+            shares = f"{int(row.get('S', 0)):,}"
+            value = f"${int(row.get('V', 0)):,}"
+            
+            # Percentage Fix: Handles both 0.09 and 9.0 formats
+            raw_p = row.get('P', 0)
+            percent = (raw_p * 100) if raw_p < 1 else raw_p
+            
+            html += f"""
+            <div class='whale-card'>
+                <div class='inst-name'>{name}</div>
+                <div class='stat-row'><span class='label'>POSITION</span><span class='value'>{shares}</span></div>
+                <div class='stat-row'><span class='label'>MARKET_VAL</span><span class='value'>{value}</span></div>
+                <div class='stat-row'><span class='label'>OWNERSHIP</span><span class='value'>{percent:.2f}%</span></div>
+                <div class='bar-bg'><div class='bar-fill' style='width: {min(percent * 8, 100)}%;'></div></div>
+            </div>
+            """
+        html += "</div>"
+        st.markdown(html, unsafe_allow_html=True)
+    else:
+        st.info("DATA_REDACTED: No signals found.")
 
-    # CHAT INTERFACE
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-
-    for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"]):
-            st.write(msg["content"])
-
-    if user_q := st.chat_input("Ask YN Vanguard anything..."):
-        st.session_state.chat_history.append({"role": "user", "content": user_q})
-        with st.chat_message("user"):
-            st.write(user_q)
-
-        with st.chat_message("assistant"):
-            try:
-                model = genai.GenerativeModel("gemini-1.5-flash-002")
-                ai_resp = model.generate_content(f"Context: {ticker}. User Question: {user_q}")
-                st.write(ai_resp.text)
-                st.session_state.chat_history.append({"role": "assistant", "content": ai_resp.text})
-            except Exception as e:
-                st.error("AI_OFFLINE: Ensure API Key is correct.")
+# RENDER COMMANDS
+render_whale_cards(stock.institutional_holders, "INSTITUTIONAL_WHALES")
+render_whale_cards(stock.mutualfund_holders, "MUTUAL_FUND_EXPOSURE")
