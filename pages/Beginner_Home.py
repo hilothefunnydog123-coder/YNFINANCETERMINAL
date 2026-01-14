@@ -25,7 +25,7 @@ st.markdown("""
 def get_global_ai_rankings():
     """Scans global sectors and uses Gemini to rank the best 15 in the world"""
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash")
     
     # We provide the AI with current global macro context
     # In a full terminal, we'd pass a dataframe of 500+ screened stocks here
