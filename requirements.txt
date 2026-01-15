@@ -25,3 +25,4 @@ twikit
 pandas
 beautifulsoup4
 pydeck
+streamlit-autorefresh
