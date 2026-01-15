@@ -9,3 +9,8 @@ numpy
 google-generativeai
 yfinance>=0.2.64
 curl_cffi>=0.11.4
+selenium
+webdriver-manager
+twikit
+pandas
+beautifulsoup4
