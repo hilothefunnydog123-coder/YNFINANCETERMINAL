@@ -1,9 +1,12 @@
 import streamlit as st
 import yfinance as yf
+import pandas as pd
+import pydeck as pdk
+from streamlit_autorefresh import st_autorefresh
 
-# --- 0. THE BIOMETRIC GUARD (STEP 1) ---
-# This stops the script unless the user's hardware verifies their identity
-if not st.experimental_user.is_logged_in:
+# --- 1. BIOMETRIC GUARD (HANKO OIDC) ---
+# This ensures "st.user" is checked safely to prevent AttributeError
+if not st.user.get("is_logged_in", False):
     st.set_page_config(page_title="YN_SECURE_GATE", layout="centered")
     st.markdown("""
         <style>
@@ -16,16 +19,19 @@ if not st.experimental_user.is_logged_in:
         </style>
         <div class="gate-card">
             <h1>🔒 SOVEREIGN_ACCESS_LOCKED</h1>
-            <p>Hardware-bound Biometric Recognition Required.</p>
+            <p>Biometric Hardware Recognition Required for Terminal Initialization.</p>
         </div>
     """, unsafe_allow_html=True)
 
-    if st.button("INITIALIZE_FINGERPRINT_SCAN", use_container_width=True):
-        # Triggers the Hanko Passkey flow via OIDC
+    # Calling "hanko" triggers the native browser fingerprint/FaceID prompt
+    if st.button("INITIALIZE_HARDWARE_SCAN", use_container_width=True):
         st.login("hanko")
     st.stop()
 
-# --- 1. TERMINAL UI & CSS (ONLY LOADS AFTER AUTH) ---
+# --- 2. MAJESTIC TERMINAL INTERFACE ---
+st.set_page_config(layout="wide", page_title="SOVEREIGN_V46")
+st_autorefresh(interval=60000, key="global_refresh")
+
 def inject_terminal_css():
     st.markdown("""
         <style>
@@ -38,27 +44,27 @@ def inject_terminal_css():
             box-shadow: 0 0 15px rgba(0, 255, 65, 0.05);
         }
         h1, h2, h3 { font-family: 'Courier New', monospace; color: #00ff41 !important; text-shadow: 0 0 8px #00ff41; }
-        .stTabs [data-baseweb="tab"] { background-color: rgba(255, 255, 255, 0.05); color: #888; }
-        .stTabs [aria-selected="true"] { background-color: rgba(0, 255, 65, 0.1) !important; color: #00ff41 !important; }
+        .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+        .stTabs [aria-selected="true"] { background-color: rgba(0, 255, 65, 0.1) !important; color: #00ff41 !important; border-bottom: 2px solid #00ff41 !important; }
         </style>
     """, unsafe_allow_html=True)
 
-st.set_page_config(layout="wide", page_title="SOVEREIGN_V46")
 inject_terminal_css()
 
-# --- 2. COMMAND CENTER LOGIC ---
+# --- 3. COMMAND CENTER LOGIC ---
 if 'ticker' not in st.session_state:
     st.session_state.ticker = "NVDA"
 
 with st.sidebar:
     st.title("COMMAND_CENTER")
-    st.info(f"VERIFIED_USER: {st.experimental_user.email}")
+    st.write(f"VERIFIED_USER: {st.user.get('email', 'N/A')}")
     st.session_state.ticker = st.text_input("SET_ACTIVE_SYMBOL", value=st.session_state.ticker).upper()
     if st.button("TERMINATE_SESSION"):
         st.logout()
 
 st.markdown(f"<h1>// SECURITY_MASTER: {st.session_state.ticker}</h1>", unsafe_allow_html=True)
 
+# Data Fetching
 stock = yf.Ticker(st.session_state.ticker)
 info = stock.info
 
@@ -76,3 +82,22 @@ with col4:
     st.write("**PROPRIETARY_SCORES**")
     st.metric("LIQUIDITY", "HIGH", "98.2")
     st.metric("B_FAIR_VALUE", f"${info.get('targetMedianPrice')}")
+
+# --- 4. GLOBAL MARITIME SURVEILLANCE MAP ---
+# CARTO_DARK works without an API key
+st.subheader("🛰️ LIVE_AIS_TANKER_TRACKING")
+dummy_tankers = pd.DataFrame([
+    {"name": "VLCC_ARABIA", "lat": 25.12, "lon": 55.23},
+    {"name": "NORDIC_STAR", "lat": 1.29, "lon": 103.85},
+    {"name": "GULF_RUNNER", "lat": 26.55, "lon": 50.31}
+])
+
+st.pydeck_chart(pdk.Deck(
+    map_style=pdk.map_styles.CARTO_DARK,
+    initial_view_state=pdk.ViewState(latitude=15, longitude=30, zoom=1.2, pitch=45),
+    layers=[
+        pdk.Layer("ScatterplotLayer", data=dummy_tankers, get_position="[lon, lat]", 
+                  get_color="[0, 255, 65, 180]", get_radius=300000, pickable=True)
+    ],
+    tooltip={"text": "Vessel: {name}\nPos: {lat}, {lon}"}
+))
