@@ -4,6 +4,7 @@ import pandas as pd
 import pydeck as pdk
 import plotly.graph_objects as go
 from datetime import datetime
+import requests
 
 # --- 1. THE GLASS-NEON DESIGN SYSTEM ---
 st.set_page_config(layout="wide", page_title="SOVEREIGN_V46", page_icon="🛰️")
@@ -129,3 +130,24 @@ st.pydeck_chart(pdk.Deck(
     ],
     tooltip={"text": "Vessel: {name}\nCargo Load: {load}%"}
 ))
+import requests
+
+def get_satellite_ground_truth(lat, lon):
+    # This calls the STAC API to find the most recent satellite "scene"
+    stac_api = "https://earth-search.aws.element84.com/v1/search"
+    params = {
+        "intersects": {"type": "Point", "coordinates": [lon, lat]},
+        "limit": 1,
+        "collections": ["sentinel-2-l2a"]
+    }
+    response = requests.post(stac_api, json=params).json()
+    if response['features']:
+        # Returns the thumbnail of the latest satellite pass
+        return response['features'][0]['assets']['thumbnail']['href']
+    return None
+
+# UI Implementation
+if st.button("EXECUTE_SATELLITE_OVERPASS"):
+    img_url = get_satellite_ground_truth(25.12, 55.23) # Example: Port of Jebel Ali
+    if img_url:
+        st.image(img_url, caption="LATEST_SATELLITE_GROUND_TRUTH", use_container_width=True)
