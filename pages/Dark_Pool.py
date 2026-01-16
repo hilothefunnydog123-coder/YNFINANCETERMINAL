@@ -2,6 +2,12 @@ import streamlit as st
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+import streamlit as st
+
+# --- INITIALIZE SESSION STATE ---
+# This prevents the AttributeError by ensuring 'ticker' exists
+if 'ticker' not in st.session_state:
+    st.session_state.ticker = "NVDA"  # Set your preferred default ticker
 
 def get_real_dark_pool_ratio(ticker):
     """
