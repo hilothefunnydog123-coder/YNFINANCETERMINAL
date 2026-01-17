@@ -2,52 +2,73 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
-def inject_stark_headers():
+def inject_stark_ui_v2():
     st.markdown("""
         <style>
-        /* 1. THE STARK SECTION FRAME */
-        .stark-section {
-            position: relative;
-            padding: 20px;
-            margin: 20px 0;
-            background: rgba(0, 255, 255, 0.01);
-            border-left: 2px solid #00ffff;
-            clip-path: polygon(0 0, 95% 0, 100% 15%, 100% 100%, 5% 100%, 0 85%);
-            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+        /* 1. STICKY HUD - FORCED TO TOP */
+        [data-testid="stHeader"] {
+            background: rgba(0,0,0,0.95) !important;
+            border-bottom: 2px solid #00ffff !important;
+            box-shadow: 0 0 20px #00ffff !important;
         }
 
-        /* 2. ANIMATED SCANNER LINE */
-        .stark-section::after {
-            content: "";
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 2px;
-            background: linear-gradient(90deg, transparent, #00ffff, transparent);
-            animation: scan 3s linear infinite;
-        }
-
-        @keyframes scan {
-            0% { transform: translateY(0); opacity: 0; }
-            50% { opacity: 1; }
-            100% { transform: translateY(400px); opacity: 0; }
+        /* 2. THE SECTION CONTAINER (The "Jarvis Frame") */
+        .stark-frame {
+            position: relative !important;
+            border: 1px solid rgba(0, 255, 255, 0.2) !important;
+            background: linear-gradient(135deg, rgba(0,255,255,0.05) 0%, transparent 100%) !important;
+            padding: 25px !important;
+            margin: 20px 0 !important;
+            border-radius: 0 20px 0 20px !important;
+            overflow: hidden !important;
         }
 
         /* 3. NEON CORNER BRACKETS */
-        .bracket-header {
-            color: #00ffff;
-            font-size: 14px;
-            letter-spacing: 5px;
-            text-transform: uppercase;
-            text-shadow: 0 0 10px #00ffff;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #00ffff;
-            display: inline-block;
+        .stark-frame::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 30px; height: 30px;
+            border-top: 4px solid #00ffff; border-left: 4px solid #00ffff;
+        }
+        .stark-frame::after {
+            content: "";
+            position: absolute;
+            bottom: 0; right: 0; width: 30px; height: 30px;
+            border-bottom: 4px solid #00ffff; border-right: 4px solid #00ffff;
+        }
+
+        /* 4. TECH-HEADER STYLING */
+        .stark-header {
+            color: #00ffff !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 1.2rem !important;
+            letter-spacing: 6px !important;
+            text-transform: uppercase !important;
+            text-shadow: 0 0 15px #00ffff !important;
+            margin-bottom: 15px !important;
+            display: block !important;
+        }
+
+        /* 5. SCANNER LINE ANIMATION */
+        .scanner {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ffff, transparent);
+            position: absolute;
+            top: 0; left: 0;
+            animation: moveScan 4s infinite linear;
+            opacity: 0.5;
+        }
+
+        @keyframes moveScan {
+            0% { top: 0; }
+            100% { top: 100%; }
         }
         </style>
     """, unsafe_allow_html=True)
 
-# CALL THIS ONCE AT THE TOP
-inject_stark_headers()
+# Run the injector
+inject_stark_ui_v2()
 # 1. LAYOUT & STYLE
 st.set_page_config(layout="wide", page_title="ANALYST_ORACLE_2026")
 
