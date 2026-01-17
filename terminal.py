@@ -8,70 +8,73 @@ from datetime import datetime
 # --- 1. CORE SYSTEM ARCHITECTURE & HUD STYLING ---
 st.set_page_config(layout="wide", page_title="SOVEREIGN_TERMINAL_v2", initial_sidebar_state="collapsed")
 
-def apply_stark_terminal_ui():
-    st.markdown("""
+def apply_floor_spec_ui(price_color="#00ffff"):
+    st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
         
-        /* Global UI Blackout & Neon Cyan */
-        .stApp { background-color: #000000; color: #00ffff; font-family: 'JetBrains Mono', monospace; }
-        
-        /* STICKY HUD HEADER */
-        [data-testid="stHeader"] { background: rgba(0,0,0,0.95) !important; border-bottom: 2px solid #00ffff !important; }
-        .sticky-hud {
-            position: sticky; top: 0; z-index: 9999; 
-            background: #000; padding: 15px; border-bottom: 2px solid #00ffff;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
-        }
+        /* 1. THE CRT/LED SUB-PIXEL GRID */
+        /* This creates the physical 'mesh' look over the whole screen */
+        .stApp::before {{
+            content: " ";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 2px, 3px 100%;
+            z-index: 9999;
+            pointer-events: none;
+        }}
 
-        /* INFINITE LED TICKER */
-        .ticker-wrap {
-            width: 100%; overflow: hidden; background: #000;
-            border-bottom: 1px solid #333; white-space: nowrap; padding: 10px 0;
-        }
-        .ticker-content {
-            display: inline-block; white-space: nowrap;
-            animation: marquee 60s linear infinite;
-        }
-        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        
-        .stock-box {
-            display: inline-block; background: rgba(0, 255, 255, 0.05);
-            border: 1px solid #00ffff; margin: 0 10px; padding: 5px 15px;
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
-        }
+        /* 2. GLOBAL HARDWARE RESET */
+        .stApp {{ 
+            background-color: #000000; 
+            color: {price_color}; 
+            font-family: 'JetBrains Mono', monospace; 
+        }}
 
-        /* SECTION FRAMES (The Brackets) */
-        .stark-frame {
-            position: relative; border: 1px solid rgba(0, 255, 255, 0.1);
-            background: rgba(0, 255, 255, 0.01); padding: 25px; margin: 20px 0;
-            border-radius: 0 20px 0 20px; overflow: hidden;
-        }
-        .stark-frame::before {
-            content: ""; position: absolute; top: 0; left: 0; width: 30px; height: 30px;
-            border-top: 4px solid #00ffff; border-left: 4px solid #00ffff;
-        }
-        .stark-frame::after {
-            content: ""; position: absolute; bottom: 0; right: 0; width: 30px; height: 30px;
-            border-bottom: 4px solid #00ffff; border-right: 4px solid #00ffff;
-        }
+        /* Kill all consumer-app rounding; stay sharp and professional */
+        * {{ border-radius: 0px !important; }}
 
-        /* TELEMETRY MATRIX GRID */
-        .telemetry-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 2px; width: 100%;
-        }
-        .telemetry-tile {
-            background: rgba(0, 255, 255, 0.02); border: 1px solid rgba(0, 255, 255, 0.1);
-            padding: 12px; transition: 0.2s;
-        }
-        .telemetry-tile:hover { background: rgba(0, 255, 255, 0.1); border-color: #00ffff; }
-        .tag { color: #333; font-size: 9px; text-transform: uppercase; letter-spacing: 2px; }
-        .val { color: #00ffff; font-weight: bold; font-size: 14px; }
+        /* 3. DYNAMIC STARK FRAMES */
+        .stark-frame {{
+            position: relative;
+            border: 1px solid {price_color}33 !important;
+            background: rgba(0, 0, 0, 1) !important;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: inset 0 0 20px {price_color}11;
+        }}
+
+        /* NEON GHOSTING EFFECT */
+        .stark-header, .val, .ticker-symbol {{
+            text-shadow: 0 0 10px {price_color}, 0 0 20px {price_color}44 !important;
+            letter-spacing: 2px;
+        }}
+
+        /* 4. THE GUTTER DATA (Side Tickers) */
+        .gutter {{
+            position: fixed; top: 150px; font-size: 8px;
+            color: {price_color}44; text-transform: uppercase;
+            writing-mode: vertical-rl; letter-spacing: 4px;
+            z-index: 1000;
+        }}
+        .left-gutter {{ left: 5px; }}
+        .right-gutter {{ right: 5px; }}
+
+        /* Hide Scrollbars to keep it a fixed Command Center */
+        ::-webkit-scrollbar {{ display: none; }}
         </style>
+        
+        <div class="gutter left-gutter">SIGNAL_STRENGTH_98% // CORE_TEMP_42C // UPLINK_ACTIVE</div>
+        <div class="gutter right-gutter">ORDER_FLOW_SYNC // HIGH_FREQ_TRADING_ENABLED</div>
     """, unsafe_allow_html=True)
 
-apply_stark_terminal_ui()
+# CALL THIS IN YOUR MAIN CODE AFTER PULLING THE TICKER INFO
+# Change the color based on market movement
+current_change = info.get('regularMarketChange', 0)
+dynamic_color = "#00ff00" if current_change >= 0 else "#ff0000"
+apply_floor_spec_ui(price_color=dynamic_color)
 
 # --- 2. INFINITE LED TICKER (WALL STREET FLOOR) ---
 tickers = ["AAPL", "NVDA", "TSLA", "MSFT", "GOOGL", "AMZN", "META", "AMD", "NFLX", "COIN"] * 5
