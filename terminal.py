@@ -84,7 +84,7 @@ st.markdown(ticker_html, unsafe_allow_html=True)
 # --- 3. STICKY COMMAND HUD ---
 st.markdown(f"""
     <div class="sticky-hud">
-        <h2 style='margin:0; color:#00ffff; letter-spacing: 12px;'>// J.A.R.V.I.S._OS_CORE: {datetime.now().strftime('%H+4:%M:%S')}</h2>
+        <h2 style='margin:0; color:#00ffff; letter-spacing: 12px;'>// J.A.R.V.I.S._OS_CORE: {datetime.now().strftime('%H:%M:%S')}</h2>
     </div>
 """, unsafe_allow_html=True)
 
