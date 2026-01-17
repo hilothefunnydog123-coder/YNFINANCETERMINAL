@@ -124,6 +124,24 @@ fig.update_layout(template="plotly_dark", height=500, showlegend=False, xaxis_ra
                   margin=dict(l=0,r=0,t=0,b=0), plot_bgcolor='black', paper_bgcolor='black')
 st.plotly_chart(fig, use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
+def draw_market_heatmap():
+    st.markdown('<div class="stark-frame"><span class="stark-header">// SECTOR_PROXIMITY_HEATMAP</span>', unsafe_allow_html=True)
+    # Mock data representing S&P 500 sectors
+    data = {
+        'Sector': ['Tech', 'Energy', 'Finance', 'Health', 'Retail', 'Defense'],
+        'Parent': ['', '', '', '', '', ''],
+        'Change': [2.4, -1.2, 0.5, -0.8, 1.1, 3.2]
+    }
+    fig = go.Figure(go.Treemap(
+        labels=data['Sector'],
+        parents=data['Parent'],
+        values=[30, 15, 20, 15, 10, 10],
+        marker=dict(colors=data['Change'], colorscale='RdYlGn', showscale=True),
+        textinfo="label+value"
+    ))
+    fig.update_layout(margin=dict(t=0, l=0, r=0, b=0), paper_bgcolor='black', height=300)
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 7. RAW TELEMETRY DUMP (100+ LINES) ---
 st.markdown('<div class="stark-frame"><span style="color:#00ffff; letter-spacing:5px;">// RAW_TELEMETRY_DUMP_v.2.0</span>', unsafe_allow_html=True)
