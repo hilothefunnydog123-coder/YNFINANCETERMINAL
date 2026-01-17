@@ -2,7 +2,52 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
+def inject_stark_headers():
+    st.markdown("""
+        <style>
+        /* 1. THE STARK SECTION FRAME */
+        .stark-section {
+            position: relative;
+            padding: 20px;
+            margin: 20px 0;
+            background: rgba(0, 255, 255, 0.01);
+            border-left: 2px solid #00ffff;
+            clip-path: polygon(0 0, 95% 0, 100% 15%, 100% 100%, 5% 100%, 0 85%);
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+        }
 
+        /* 2. ANIMATED SCANNER LINE */
+        .stark-section::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, #00ffff, transparent);
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(400px); opacity: 0; }
+        }
+
+        /* 3. NEON CORNER BRACKETS */
+        .bracket-header {
+            color: #00ffff;
+            font-size: 14px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px #00ffff;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #00ffff;
+            display: inline-block;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+# CALL THIS ONCE AT THE TOP
+inject_stark_headers()
 # 1. LAYOUT & STYLE
 st.set_page_config(layout="wide", page_title="ANALYST_ORACLE_2026")
 
