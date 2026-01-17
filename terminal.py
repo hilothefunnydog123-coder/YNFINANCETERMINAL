@@ -1,15 +1,14 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import pydeck as pdk
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
 
-# --- 1. HUD ARCHITECTURE (STARK THEME) ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_HUD", initial_sidebar_state="collapsed")
+# --- 1. HUD ARCHITECTURE (STARK PRIME THEME) ---
+st.set_page_config(layout="wide", page_title="STARK_PRIME_HUD", initial_sidebar_state="collapsed")
 
-def apply_stark_ui():
+def apply_stark_prime_ui():
     st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
@@ -22,18 +21,27 @@ def apply_stark_ui():
         .sticky-hud {
             position: sticky; top: 0; z-index: 9999; 
             background: #000; padding: 15px; border-bottom: 2px solid #00ffff;
-            box-shadow: 0 0 25px rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
         }
 
-        /* DATA MATRIX - FULL WIDTH TELEMETRY */
+        /* HOLOGRAPHIC VECTOR MAP CONTAINER */
+        .hologram-map {
+            width: 100%; height: 400px;
+            background: radial-gradient(circle, #001a1a 0%, #000000 100%);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            position: relative; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* DATA MATRIX - PHOTO DENSITY */
         .telemetry-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 2px; width: 100%; margin-top: 30px;
         }
         .telemetry-tile {
             background: rgba(0, 255, 255, 0.02);
-            border: 1px solid rgba(0, 255, 255, 0.2);
+            border: 1px solid rgba(0, 255, 255, 0.1);
             padding: 12px; transition: 0.2s;
         }
         .telemetry-tile:hover { 
@@ -43,89 +51,78 @@ def apply_stark_ui():
         }
         .tag { color: #333; font-size: 9px; text-transform: uppercase; letter-spacing: 2px; }
         .val { color: #00ffff; font-weight: bold; font-size: 14px; margin-top: 5px; }
-
-        /* KILLS ALL PRESET MAP TILES */
-        .deckgl-container { background-color: #000 !important; }
         </style>
     """, unsafe_allow_html=True)
 
-apply_stark_ui()
+apply_stark_prime_ui()
 
-# --- 2. STICKY COMMAND HUD ---
+# --- 2. STICKY HUD COMMANDER ---
 st.markdown(f"""
     <div class="sticky-hud">
-        <h2 style='margin:0; color:#00ffff; letter-spacing: 10px;'>// STARK_CORE_OS: {datetime.now().strftime('%H:%M:%S')}</h2>
+        <h2 style='margin:0; color:#00ffff; letter-spacing: 12px;'>// STARK_PRIME_OS: {datetime.now().strftime('%H:%M:%S')}</h2>
     </div>
 """, unsafe_allow_html=True)
 
-# --- 3. DATA INTERCEPT (Real-Time) ---
+# --- 3. DATA INTERCEPT ---
 ticker = st.sidebar.text_input("CMD_INPUT", "NVDA").upper()
 stock = yf.Ticker(ticker)
 hist = stock.history(period="1d", interval="1m")
 info = stock.info
 
-# --- 4. THE HAND-DRAWN HOLOGRAPHIC MAP ---
-# [Image of a techy holographic world map with glowing cyan country outlines and 3D data arcs]
-st.markdown("### // GLOBAL_NETWORK_SURVEILLANCE")
+# --- 4. CUSTOM "HAND-DRAWN" HOLOGRAPHIC MAP ---
+# We bypass Pydeck and draw an SVG Vector Map directly
+st.markdown("### // GLOBAL_NEURAL_LINK")
+st.markdown("""
+<div class="hologram-map">
+    <svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0, 255, 255, 0.1)" stroke-width="0.5"/>
+            </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+        
+        <path d="M150,150 L200,120 L280,130 L320,180 L250,250 L180,240 Z" fill="none" stroke="#00ffff" stroke-width="1" stroke-dasharray="4" opacity="0.5" />
+        <path d="M500,100 L600,80 L750,120 L800,250 L650,350 L500,300 Z" fill="none" stroke="#00ffff" stroke-width="1" stroke-dasharray="4" opacity="0.5" />
+        <path d="M200,350 L300,320 L350,450 L250,480 Z" fill="none" stroke="#00ffff" stroke-width="1" stroke-dasharray="4" opacity="0.5" />
+        
+        <path d="M200,150 Q500,50 750,150" fill="none" stroke="#00ffff" stroke-width="2">
+            <animate attributeName="stroke-dasharray" from="0,1000" to="1000,0" dur="3s" repeatCount="indefinite" />
+        </path>
+        <path d="M300,400 Q600,200 650,300" fill="none" stroke="#00ff66" stroke-width="2">
+             <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
+        </path>
+        
+        <circle cx="200" cy="150" r="5" fill="#00ffff">
+            <animate attributeName="r" values="3;7;3" dur="1s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="750" cy="150" r="5" fill="#00ffff" />
+    </svg>
+</div>
+""", unsafe_allow_html=True)
 
-# Custom arc routes for the "Jarvis Link" look
-nodes = pd.DataFrame([
-    {"s": [-74.0, 40.7], "e": [139.6, 35.6]}, # NY-Tokyo
-    {"s": [103.8, 1.3], "e": [2.35, 48.8]},   # Singapore-Paris
-    {"s": [55.2, 25.2], "e": [114.1, 22.3]},  # Dubai-HK
-    {"s": [-118.2, 34.0], "e": [-0.12, 51.5]} # LA-London
-])
-
-# Use raw GeoJSON to draw our OWN world borders manually
-GEO_JSON = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson"
-
-st.pydeck_chart(pdk.Deck(
-    map_style=None, # DELETES OPENSTREETMAP/CARTO PRESETS
-    initial_view_state=pdk.ViewState(latitude=15, longitude=10, zoom=1.1, pitch=45),
-    layers=[
-        # CUSTOM WIREFRAME LANDMASSES
-        pdk.Layer(
-            "GeoJsonLayer",
-            GEO_JSON,
-            stroked=True, filled=True,
-            get_fill_color=[0, 255, 255, 5], 
-            get_line_color=[0, 255, 255, 120], 
-            get_line_width=2
-        ),
-        # 3D HOLOGRAPHIC ARCS
-        pdk.Layer(
-            "ArcLayer", data=nodes, get_source_position="s", get_target_position="e",
-            get_width=4, get_source_color="[0, 255, 255, 255]", get_target_color="[0, 255, 100, 255]",
-            great_circle=True
-        )
-    ]
-))
-
-# --- 5. TRI-STACK ANALYTICS CHARTS ---
-st.markdown("### // QUANTUM_SIGNAL_STACK")
-# Using make_subplots for back-to-back shared axis charts
+# --- 5. THE TRI-STACK QUANTUM CHARTS ---
+st.markdown("### // SIGNAL_FLOW_ANALYSIS")
 fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.01)
 
-# Price Action
+# Back-to-back charts for Price, Volume, and Trend
 fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'],
                              low=hist['Low'], close=hist['Close']), row=1, col=1)
-# Volume Flow
 fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], marker_color='#00ffff'), row=2, col=1)
-# Signal Trendline
 fig.add_trace(go.Scatter(x=hist.index, y=hist['Close'].rolling(14).mean(), line_color='#00ff66'), row=3, col=1)
 
-fig.update_layout(template="plotly_dark", height=500, showlegend=False, 
+fig.update_layout(template="plotly_dark", height=550, showlegend=False, 
                   xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0),
                   plot_bgcolor='black', paper_bgcolor='black')
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 6. THE 100+ LINE FULL-SCREEN TELEMETRY GRID (Photo Style) ---
-st.markdown("### // RAW_TELEMETRY_DUMP")
+# --- 6. THE 100-LINE FULL-SCREEN TELEMETRY GRID (Photo Style) ---
+st.markdown("### // RAW_DATA_INTERCEPT")
 st.markdown('<div class="telemetry-grid">', unsafe_allow_html=True)
 
-# Loop to pull every available REAL data point from yfinance
+# Loop to pull 100+ REAL data points from yfinance
 for key, value in info.items():
-    if value and len(str(value)) < 45:
+    if value and len(str(value)) < 40:
         st.markdown(f"""
             <div class="telemetry-tile">
                 <div class="tag">{str(key).upper()}</div>
