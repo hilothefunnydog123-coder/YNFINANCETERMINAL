@@ -152,9 +152,11 @@ class MarketDataEngine:
 
     def _generate_simulation(self):
         # Fallback data so the screen is never blank
+        # FIXED: Added "DOW 30" to match the keys expected by render_global_panel
         self.data['indices'] = {
             "S&P 500": {"price": 4780.20, "chg": 0.42},
             "NASDAQ": {"price": 16300.50, "chg": -0.18},
+            "DOW 30": {"price": 37200.10, "chg": 0.15}, # <--- ADDED THIS KEY
             "VIX": {"price": 14.23, "chg": 1.2},
             "10Y YIELD": {"price": 4.11, "chg": 0.05},
             "DXY": {"price": 103.82, "chg": 0.12},
@@ -213,8 +215,13 @@ def render_tape():
 def render_global_panel(data):
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown('<div class="panel-header"><span class="panel-title">GLOBAL MKTS</span><span class="caps">REALTIME</span></div>', unsafe_allow_html=True)
-    # Filter only non-crypto for this box
-    for k, v in {i:data['indices'][i] for i in ["S&P 500", "NASDAQ", "DOW 30", "VIX", "10Y YIELD", "DXY"]}.items():
+    
+    # SAFE ITERATION: Check if key exists before accessing
+    required_keys = ["S&P 500", "NASDAQ", "DOW 30", "VIX", "10Y YIELD", "DXY"]
+    
+    for k in required_keys:
+        # Use .get() to prevent KeyErrors if a specific ticker failed
+        v = data['indices'].get(k, {'price': 0.0, 'chg': 0.0})
         c = "pos" if v['chg'] >= 0 else "neg"
         st.markdown(f'<div class="mkt-row"><span style="color:#aaa">{k}</span><span><span style="color:#fff">{v["price"]:,.2f}</span> <span class="{c} mono">{v["chg"]:+.2f}%</span></span></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
