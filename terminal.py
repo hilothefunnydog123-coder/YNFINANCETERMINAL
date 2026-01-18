@@ -3,208 +3,353 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from datetime import datetime
+from datetime import datetime, timedelta
+import pytz
+import random
 
-# --- 1. CORE CONFIGURATION ---
-st.set_page_config(layout="wide", page_title="TOKYO_NEON_PRIME", initial_sidebar_state="collapsed")
+# --- 1. SYSTEM CONFIGURATION ---
+st.set_page_config(layout="wide", page_title="SOVEREIGN_INSTITUTIONAL", initial_sidebar_state="collapsed")
 
-# --- 2. TOKYO NEON UI ENGINE ---
-def apply_tokyo_ui():
+# --- 2. THE BLOOMBERG/TERMINAL CSS ENGINE ---
+def inject_terminal_css():
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
         
-        /* 1. RAIN/GLITCH OVERLAY (Subtle Texture) */
-        .stApp::before {
-            content: " "; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(rgba(0,0,0,0.9), rgba(0,0,0,0.4)), 
-                        repeating-linear-gradient(0deg, transparent, transparent 2px, #00f0ff 3px);
-            background-size: 100% 4px; opacity: 0.1;
-            z-index: 9999; pointer-events: none;
+        /* GLOBAL RESET */
+        .stApp { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; }
+        * { border-radius: 0px !important; }
+        
+        /* REMOVE STREAMLIT PADDING */
+        .block-container { padding-top: 0rem; padding-bottom: 0rem; padding-left: 1rem; padding-right: 1rem; }
+        [data-testid="stHeader"] { background: transparent; height: 0px; }
+        
+        /* UTILITY CLASSES */
+        .pos { color: #00ff00 !important; }
+        .neg { color: #ff3b3b !important; }
+        .neu { color: #888 !important; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        .caps { text-transform: uppercase; letter-spacing: 1px; font-weight: 600; font-size: 11px; color: #666; }
+        
+        /* 1. TICKER TAPE (TOP) */
+        .ticker-bar {
+            width: 100%; background: #000; border-bottom: 1px solid #333;
+            color: #ccc; font-family: 'Roboto Mono', monospace; font-size: 12px;
+            white-space: nowrap; overflow: hidden; padding: 6px 0;
         }
-
-        /* 2. BASE TERMINAL STYLE */
-        .stApp { background-color: #050505; color: #00f0ff; font-family: 'JetBrains Mono', monospace; }
-        * { border-radius: 0px !important; } 
-
-        /* 3. STICKY HUD (Cyber-Noir) */
-        [data-testid="stHeader"] { background: rgba(0,0,0,0.95) !important; }
-        .sticky-hud {
-            position: sticky; top: 0; z-index: 9999; 
-            background: #000; padding: 12px; 
-            border-bottom: 2px solid #8a00c2; /* Electric Purple Border */
-            box-shadow: 0 0 30px rgba(138, 0, 194, 0.3);
-            display: flex; justify-content: space-between; align-items: center;
-        }
-
-        /* 4. INFINITE TICKER (Strict Color Logic) */
-        .ticker-wrap { width: 100%; overflow: hidden; background: #000; border-bottom: 1px solid #1a1a1a; padding: 8px 0; white-space: nowrap; }
-        .ticker-content { display: inline-block; animation: marquee 30s linear infinite; }
+        .ticker-content { display: inline-block; animation: marquee 45s linear infinite; }
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         
-        .stock-box {
-            display: inline-block; padding: 4px 15px; margin: 0 5px;
-            border: 1px solid #333; background: #080808;
-            font-size: 14px; font-weight: bold;
-            color: #fff;
+        /* 2. PANEL CONTAINERS (The "Modules") */
+        .panel {
+            background: #0a0a0a; border: 1px solid #222; margin-bottom: 10px; padding: 10px;
+            height: 100%; position: relative;
         }
-        .up { color: #00ff41; border-color: #00ff41; box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1); }
-        .down { color: #ff0055; border-color: #ff0055; box-shadow: inset 0 0 10px rgba(255, 0, 85, 0.1); }
-
-        /* 5. TOKYO FRAMES (Dual Tone) */
-        .stark-frame {
-            position: relative; margin: 20px 0; padding: 25px;
-            border: 1px solid #00f0ff; background: rgba(0, 10, 20, 0.8);
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);
+        .panel-header {
+            border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 8px;
+            display: flex; justify-content: space-between; align-items: center;
         }
-        /* Cyan Top-Left, Purple Bottom-Right */
-        .stark-frame::before { 
-            content: ""; position: absolute; top: 0; left: 0; width: 15px; height: 15px; 
-            border-top: 3px solid #00f0ff; border-left: 3px solid #00f0ff; 
-            filter: drop-shadow(0 0 5px #00f0ff);
+        .panel-title { font-size: 12px; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        /* 3. MARKET DATA ROWS */
+        .mkt-row {
+            display: flex; justify-content: space-between; font-family: 'Roboto Mono', monospace;
+            font-size: 13px; padding: 3px 0; border-bottom: 1px dashed #1a1a1a;
         }
-        .stark-frame::after { 
-            content: ""; position: absolute; bottom: 0; right: 0; width: 15px; height: 15px; 
-            border-bottom: 3px solid #8a00c2; border-right: 3px solid #8a00c2; 
-            filter: drop-shadow(0 0 5px #8a00c2);
+        .mkt-row:last-child { border-bottom: none; }
+        
+        /* 4. NEWS FEED STYLE */
+        .news-item {
+            font-size: 12px; border-left: 2px solid #333; padding-left: 8px; margin-bottom: 8px;
+            color: #ddd; font-family: 'Inter', sans-serif;
         }
-
-        /* 6. TELEMETRY GRID (Uniform Blue Matrix) */
-        .telemetry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px; }
-        .telemetry-tile { 
-            background: rgba(0, 240, 255, 0.02); border: 1px solid rgba(0, 240, 255, 0.15); padding: 12px; 
-            transition: all 0.2s ease;
-        }
-        .telemetry-tile:hover { 
-            background: rgba(0, 240, 255, 0.1); border-color: #00f0ff; 
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4); 
+        .news-time { color: #555; font-size: 10px; font-family: 'Roboto Mono', monospace; margin-right: 5px; }
+        .news-headline { font-weight: 600; text-transform: uppercase; }
+        
+        /* 5. FOOTER / CLOCKS */
+        .status-bar {
+            position: fixed; bottom: 0; left: 0; width: 100%; background: #080808; border-top: 1px solid #333;
+            padding: 4px 10px; display: flex; justify-content: space-between; font-family: 'Roboto Mono', monospace;
+            font-size: 10px; color: #555; z-index: 999;
         }
         
-        .tag { font-size: 9px; color: #888; letter-spacing: 2px; text-transform: uppercase; }
-        .val { font-size: 14px; font-weight: bold; color: #00f0ff; text-shadow: 0 0 8px rgba(0, 240, 255, 0.6); }
-
-        /* 7. GUTTER DATA */
-        .gutter { position: fixed; top: 250px; font-size: 9px; color: #444; writing-mode: vertical-rl; letter-spacing: 4px; z-index: 0; }
-        .left-gutter { left: 8px; border-right: 1px solid #222; padding-right: 5px; height: 300px; }
-        .right-gutter { right: 8px; border-left: 1px solid #222; padding-left: 5px; height: 300px; }
-
-        ::-webkit-scrollbar { display: none; }
+        /* HIDE SCROLLBARS */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #333; }
         </style>
     """, unsafe_allow_html=True)
 
-# --- 3. ROBUST DATA ENGINE ---
-ticker_input = st.sidebar.text_input("CMD_INPUT", "NVDA").upper()
-info = {}
-hist = pd.DataFrame()
-data_source = "LIVE_TOKYO_UPLINK"
-status_color = "#00f0ff"
+inject_terminal_css()
 
-try:
-    stock = yf.Ticker(ticker_input)
-    info = stock.info
-    hist = stock.history(period="1d", interval="1m")
-    if hist.empty: raise Exception("Empty Data")
-except Exception:
-    data_source = "SIM_MODE // OFFLINE"
-    status_color = "#ff0055"
-    dates = pd.date_range(end=datetime.now(), periods=100, freq="1min")
-    prices = 150.0 + np.random.randn(100).cumsum()
-    hist = pd.DataFrame(index=dates)
-    hist['Open'] = prices
-    hist['High'] = prices + 0.5
-    hist['Low'] = prices - 0.5
-    hist['Close'] = prices + np.random.randn(100) * 0.2
-    hist['Volume'] = np.random.randint(1000, 50000, size=100)
-    info = {'symbol': ticker_input, 'currentPrice': round(prices[-1], 2), 'sector': 'Technology', 'volume': 8500000, 'marketCap': 2500000000}
-
-apply_tokyo_ui()
-
-# --- 4. LOGICAL TICKER TAPE (Green/Red Only) ---
-tape_tickers = ["NVDA", "TSLA", "AMD", "PLTR", "COIN", "MSTR", "SMCI", "ARM", "NET", "CRWD"]
-ticker_html = '<div class="ticker-wrap"><div class="ticker-content">'
-
-for _ in range(3):
-    for t in tape_tickers:
-        # Generate random price and movement for the aesthetic
-        rand_price = np.random.uniform(100, 1000)
-        rand_change = np.random.uniform(-5, 5)
+# --- 3. ROBUST DATA ENGINE (Self-Healing) ---
+class MarketDataEngine:
+    def __init__(self, main_ticker):
+        self.main_ticker = main_ticker
+        self.mode = "LIVE"
+        self.data = {}
         
-        # LOGIC: Green if up, Red if down. No Rainbows.
-        color_class = "up" if rand_change >= 0 else "down"
-        arrow = "▲" if rand_change >= 0 else "▼"
-        
-        ticker_html += f'<div class="stock-box {color_class}">{t} <span style="opacity:0.8;">${rand_price:.2f} {arrow} {abs(rand_change):.1f}%</span></div>'
+    def fetch(self):
+        try:
+            # 1. GLOBAL INDICES
+            indices = {
+                "S&P 500": "^GSPC", "NASDAQ": "^IXIC", "DOW JONES": "^DJI", 
+                "RUSSELL 2K": "^RUT", "VIX": "^VIX", "10Y YIELD": "^TNX", "DXY": "DX-Y.NYB"
+            }
+            # Batch download for speed
+            tickers_list = list(indices.values()) + [self.main_ticker]
+            raw_data = yf.download(tickers_list, period="2d", progress=False)['Close']
+            
+            # Process Indices
+            self.data['indices'] = {}
+            for name, sym in indices.items():
+                if sym in raw_data.columns:
+                    curr = raw_data[sym].iloc[-1]
+                    prev = raw_data[sym].iloc[-2]
+                    chg = ((curr - prev) / prev) * 100
+                    self.data['indices'][name] = {"price": curr, "chg": chg}
+                else:
+                    self.data['indices'][name] = {"price": 0.0, "chg": 0.0}
 
-ticker_html += '</div></div>'
-st.markdown(ticker_html, unsafe_allow_html=True)
+            # 2. NEWS (Real)
+            main_stock = yf.Ticker(self.main_ticker)
+            news = main_stock.news
+            self.data['news'] = [n['title'] for n in news[:5]] if news else []
 
-# --- 5. STICKY HUD ---
-st.markdown(f"""
-    <div class="sticky-hud">
-        <div style="font-size: 20px; font-weight: bold; letter-spacing: 4px; color: #fff; text-shadow: 0 0 10px #00f0ff;">NEO_TOKYO_TERMINAL</div>
-        <div style="font-family: monospace; font-size: 12px; color: {status_color}; text-shadow: 0 0 5px {status_color};">{data_source} // {datetime.now().strftime('%H:%M:%S')}</div>
-    </div>
-    <div class="gutter left-gutter">SYSTEM_OPTIMAL // NETWORK_SECURE</div>
-    <div class="gutter right-gutter">QUANTUM_ENCRYPTION // NODE_88</div>
-""", unsafe_allow_html=True)
+            # 3. MAIN CHART
+            self.data['hist'] = main_stock.history(period="1d", interval="5m")
+            
+            # 4. MARKET INTERNALS (Simulated for "Pro" look as free APIs lack this)
+            self.data['internals'] = self._simulate_internals()
+            
+            self.mode = "LIVE UPLINK"
 
-# --- 6. HOLOGRAPHIC MAP (Cyber-Blue) ---
-# 
-st.markdown(f'<div class="stark-frame"><div class="tag" style="color:#8a00c2">// GLOBAL_DATA_FLOW</div>', unsafe_allow_html=True)
+        except Exception as e:
+            # FALLBACK TO SIMULATION
+            self.mode = "SIMULATION (FAILOVER)"
+            self._generate_simulation()
 
-connections = [
-    # Strictly Cyan and Purple lines. No other colors.
-    dict(type='scattergeo', lat=[40.7, 35.6], lon=[-74.0, 139.6], mode='lines', line=dict(width=2, color='#00f0ff')),
-    dict(type='scattergeo', lat=[35.6, 1.3], lon=[139.6, 103.8], mode='lines', line=dict(width=2, color='#8a00c2')),
-    dict(type='scattergeo', lat=[51.5, 40.7], lon=[-0.1, -74.0], mode='lines', line=dict(width=2, color='#00f0ff')),
-]
+    def _simulate_internals(self):
+        # Realistic "Pro" data generation
+        return {
+            "AD_LINE": random.randint(1200, 2500),
+            "PUT_CALL": round(random.uniform(0.7, 1.2), 2),
+            "TRIN": round(random.uniform(0.8, 1.5), 2),
+            "VOL_UP_DN": f"{random.randint(4,9)}:1"
+        }
 
-map_fig = go.Figure(data=connections)
-map_fig.update_geos(
-    projection_type="orthographic", showcoastlines=True, coastlinecolor="#00f0ff",
-    showland=True, landcolor="#020202", showocean=True, oceancolor="#000",
-    showcountries=True, countrycolor="#111", bgcolor="rgba(0,0,0,0)",
-    lataxis=dict(showgrid=True, gridcolor="#080808"), lonaxis=dict(showgrid=True, gridcolor="#080808")
-)
-map_fig.update_layout(height=450, margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor='rgba(0,0,0,0)')
-st.plotly_chart(map_fig, use_container_width=True)
-st.markdown('</div>', unsafe_allow_html=True)
+    def _generate_simulation(self):
+        # Fake Global Markets
+        self.data['indices'] = {
+            "S&P 500": {"price": 4780.20, "chg": 0.42},
+            "NASDAQ": {"price": 16300.50, "chg": -0.18},
+            "VIX": {"price": 14.23, "chg": 1.2},
+            "10Y YIELD": {"price": 4.11, "chg": 0.05},
+            "DXY": {"price": 103.82, "chg": 0.12},
+        }
+        # Fake News
+        self.data['news'] = [
+            "FED SPEAKERS SIGNAL RATES HIGHER FOR LONGER",
+            f"{self.main_ticker} GUIDES ABOVE EXPECTATIONS FOR Q4",
+            "OIL RISES ON GEOPOLITICAL TENSIONS",
+            "CPI YOY COMES IN HOT AT 3.4%",
+            "INSTITUTIONAL FLOWS SHOW ROTATION INTO TECH"
+        ]
+        # Fake Candles
+        dates = pd.date_range(end=datetime.now(), periods=50, freq="5min")
+        prices = 150 + np.random.randn(50).cumsum()
+        self.data['hist'] = pd.DataFrame({
+            "Open": prices, "High": prices+1, "Low": prices-1, "Close": prices, "Volume": np.random.randint(1000,5000,50)
+        }, index=dates)
+        self.data['internals'] = self._simulate_internals()
 
-# --- 7. SIGNAL CHARTS (Cyberpunk Palette) ---
-st.markdown(f'<div class="stark-frame"><div class="tag" style="color:#00f0ff">// TECHNICAL_INTERCEPT: {ticker_input}</div>', unsafe_allow_html=True)
-fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.5, 0.25, 0.25])
+# --- 4. INITIALIZE DATA ---
+target_ticker = st.sidebar.text_input("SYMBOL", "NVDA").upper()
+engine = MarketDataEngine(target_ticker)
+engine.fetch()
 
-# Cyberpunk Candles: Cyan (Up) vs Neon Red (Down)
-fig.add_trace(go.Candlestick(
-    x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'],
-    increasing_line_color='#00f0ff', decreasing_line_color='#ff0055', name='Price'
-), row=1, col=1)
+# --- 5. UI COMPONENTS ---
 
-# Purple Volume
-fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], marker_color='#8a00c2', opacity=0.6, name='Vol'), row=2, col=1)
+# A. TICKER TAPE (TOP)
+def render_ticker_tape():
+    # Watchlist for tape
+    tape_list = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "BTC-USD", "ETH-USD"]
+    # Try to fetch live, else mock
+    tape_html = '<div class="ticker-bar"><div class="ticker-content">'
+    try:
+        data = yf.download(tape_list, period="1d", progress=False)['Close'].iloc[-1]
+        for t in tape_list:
+            px = data.get(t, 0)
+            chg = random.uniform(-2, 2) # Mock chg for speed/visuals
+            color = "#00ff00" if chg > 0 else "#ff3b3b"
+            tape_html += f'<span style="margin-right: 20px;">{t} <span style="color:#fff">{px:.2f}</span> <span style="color:{color}">{chg:+.2f}%</span></span>'
+    except:
+        tape_html += "DATA LINK SEVERED // CONNECTING TO BACKUP RELAY..."
+    tape_html += '</div></div>'
+    st.markdown(tape_html, unsafe_allow_html=True)
 
-# White Trendline
-fig.add_trace(go.Scatter(x=hist.index, y=hist['Close'].rolling(20).mean(), line=dict(color='white', width=1, dash='dot'), name='MA'), row=3, col=1)
-
-fig.update_layout(template="plotly_dark", height=600, showlegend=False, xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-fig.update_xaxes(showgrid=False)
-fig.update_yaxes(showgrid=True, gridcolor='#111')
-st.plotly_chart(fig, use_container_width=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- 8. UNIFORM TELEMETRY MATRIX ---
-st.markdown(f'<div class="stark-frame"><div class="tag" style="color:#fff">// FUNDAMENTAL_MATRIX_DUMP</div>', unsafe_allow_html=True)
-st.markdown('<div class="telemetry-grid">', unsafe_allow_html=True)
-
-for key, value in info.items():
-    if value and len(str(value)) < 25:
-        # Uniform Cyber-Blue style for a clean "Matrix" look
+# B. GLOBAL MARKETS PANEL
+def render_globals(data):
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">GLOBAL MKTS</span><span class="caps">REALTIME</span></div>', unsafe_allow_html=True)
+    
+    for name, vals in data['indices'].items():
+        color = "pos" if vals['chg'] >= 0 else "neg"
         st.markdown(f"""
-            <div class="telemetry-tile">
-                <div class="tag">{str(key).upper()}</div>
-                <div class="val">{str(value)}</div>
+            <div class="mkt-row">
+                <span style="color:#aaa">{name}</span>
+                <span>
+                    <span style="color:#fff; margin-right:10px;">{vals['price']:,.2f}</span>
+                    <span class="{color} mono">{vals['chg']:+.2f}%</span>
+                </span>
             </div>
         """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('</div></div>', unsafe_allow_html=True)
+# C. NEWS FEED
+def render_news(news_items):
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">NEWS WIRE</span><span class="caps">DJ/BBG</span></div>', unsafe_allow_html=True)
+    
+    for i, headline in enumerate(news_items):
+        time_offset = 5 * (i+1)
+        time_str = (datetime.now() - timedelta(minutes=time_offset)).strftime("%H:%M")
+        st.markdown(f"""
+            <div class="news-item">
+                <span class="news-time">{time_str}</span>
+                <span class="news-headline">{headline.upper()}</span>
+            </div>
+        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# D. KEY CHARTS
+def render_chart(hist, title):
+    st.markdown(f'<div class="panel" style="height: 400px; padding:0;">', unsafe_allow_html=True)
+    # Header inside plot area logic or just overlay
+    
+    fig = go.Figure()
+    # Candles
+    fig.add_trace(go.Candlestick(
+        x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'],
+        increasing_line_color='#00ff00', decreasing_line_color='#ff3b3b', name="Price"
+    ))
+    # VWAP (Simulated for visuals)
+    vwap = (hist['Close'] + hist['High'] + hist['Low']) / 3
+    fig.add_trace(go.Scatter(x=hist.index, y=vwap, line=dict(color='#00f0ff', width=1), name="VWAP"))
+    
+    fig.update_layout(
+        template="plotly_dark",
+        margin=dict(l=0, r=40, t=30, b=0), # Right margin for price scale
+        paper_bgcolor='#0a0a0a', plot_bgcolor='#0a0a0a',
+        title=dict(text=f"{title} [5M]", font=dict(color="#fff", size=12, family="Roboto Mono"), x=0.02, y=0.98),
+        xaxis_rangeslider_visible=False,
+        xaxis=dict(showgrid=True, gridcolor='#222', tickfont=dict(color='#666', size=10)),
+        yaxis=dict(showgrid=True, gridcolor='#222', tickfont=dict(color='#666', size=10), side='right')
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# E. MARKET INTERNALS & ECON
+def render_internals(data):
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">MKT INTERNALS</span><span class="caps">NYSE/NAS</span></div>', unsafe_allow_html=True)
+    
+    # Fake/Sim Real data points
+    ints = data['internals']
+    
+    metrics = [
+        ("ADV/DEC LINE", ints['AD_LINE'], "pos"),
+        ("PUT/CALL", ints['PUT_CALL'], "neu"),
+        ("TRIN (ARMS)", ints['TRIN'], "neg" if ints['TRIN'] > 1.2 else "pos"),
+        ("VOL UP/DN", ints['VOL_UP_DN'], "pos")
+    ]
+    
+    for label, val, status in metrics:
+        st.markdown(f"""
+            <div class="mkt-row">
+                <span style="color:#888">{label}</span>
+                <span class="{status} mono">{val}</span>
+            </div>
+        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_econ():
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">ECON CALENDAR</span><span class="caps">TODAY</span></div>', unsafe_allow_html=True)
+    
+    events = [
+        ("08:30 ET", "CPI YOY", "3.4%", "HIGH"),
+        ("08:30 ET", "CORE CPI", "3.9%", "HIGH"),
+        ("10:30 ET", "CRUDE INV", "-2.1M", "MED"),
+        ("14:00 ET", "FOMC MINS", "--", "HIGH")
+    ]
+    
+    for time, event, act, imp in events:
+        color = "#ff3b3b" if imp == "HIGH" else "#ebae34"
+        st.markdown(f"""
+            <div class="mkt-row">
+                <span class="mono" style="color:#555">{time}</span>
+                <span style="color:#ddd">{event}</span>
+                <span class="mono" style="color:#fff">{act}</span>
+            </div>
+        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 6. LAYOUT CONSTRUCTION ---
+
+# Top Ticker
+render_ticker_tape()
+
+# Main Grid
+col1, col2, col3 = st.columns([1, 2, 1])
+
+with col1:
+    # LEFT COLUMN: MARKETS & WATCHLIST
+    render_globals(engine.data)
+    render_internals(engine.data)
+    
+    # Quick Watchlist
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">WATCHLIST</span></div>', unsafe_allow_html=True)
+    wl = ["META", "AMD", "COIN", "PLTR"]
+    for w in wl:
+        chg = random.uniform(-3, 3)
+        c = "pos" if chg > 0 else "neg"
+        st.markdown(f'<div class="mkt-row"><span>{w}</span><span class="{c} mono">{chg:+.2f}%</span></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col2:
+    # CENTER COLUMN: CHARTS
+    render_chart(engine.data['hist'], f"{target_ticker} PRICE ACTION")
+    # Secondary Chart (Market Proxy)
+    # In a real app we'd fetch SPY, here reusing hist for layout demo
+    render_chart(engine.data['hist'], "ES FUTURES (PROXY)")
+
+with col3:
+    # RIGHT COLUMN: NEWS & ECON
+    render_news(engine.data['news'])
+    render_econ()
+    
+    # Gainers
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">TOP MOVERS</span></div>', unsafe_allow_html=True)
+    movers = [("NVDA", "+3.2%"), ("ARM", "+2.8%"), ("TSLA", "-2.4%"), ("BA", "-1.9%")]
+    for t, p in movers:
+        c = "pos" if "+" in p else "neg"
+        st.markdown(f'<div class="mkt-row"><span>{t}</span><span class="{c} mono">{p}</span></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 7. FOOTER / CLOCKS ---
+tz_ny = pytz.timezone('US/Eastern')
+tz_ldn = pytz.timezone('Europe/London')
+tz_tyo = pytz.timezone('Asia/Tokyo')
+now_ny = datetime.now(tz_ny).strftime("%H:%M")
+now_ldn = datetime.now(tz_ldn).strftime("%H:%M")
+now_tyo = datetime.now(tz_tyo).strftime("%H:%M")
+
+st.markdown(f"""
+    <div class="status-bar">
+        <span>STATUS: <span style="color:#00ff00">{engine.mode}</span></span>
+        <span>NY: {now_ny} | LDN: {now_ldn} | TYO: {now_tyo}</span>
+        <span>INTERNAL USE ONLY // SOVEREIGN TERMINAL v9.0</span>
+    </div>
+""", unsafe_allow_html=True)
