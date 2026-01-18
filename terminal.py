@@ -5,37 +5,34 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
 
-# --- 1. CORE SYSTEM HUD & STYLING ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_STARK_CORE", initial_sidebar_state="collapsed")
+# --- 1. HUD ARCHITECTURE (STARK THEME) ---
+st.set_page_config(layout="wide", page_title="SOVEREIGN_HUD", initial_sidebar_state="collapsed")
 
-def apply_stark_floor_ui(main_color="#00ffff"):
+def apply_stark_ui(main_color="#00ffff"):
     st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
         
-        /* CRT LED SUB-PIXEL GRID */
+        /* SUB-PIXEL LED GRID OVERLAY */
         .stApp::before {{
-            content: " ";
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            content: " "; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
                         linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
-            background-size: 100% 2px, 3px 100%;
-            z-index: 9999; pointer-events: none;
+            background-size: 100% 2px, 3px 100%; z-index: 9999; pointer-events: none;
         }}
 
         .stApp {{ background-color: #000000; color: {main_color}; font-family: 'JetBrains Mono', monospace; }}
-        * {{ border-radius: 0px !important; }} 
+        * {{ border-radius: 0px !important; }}
 
-        /* STICKY COMMAND HUD */
-        [data-testid="stHeader"] {{ background: rgba(0,0,0,0.95) !important; border-bottom: 2px solid {main_color} !important; }}
+        /* STICKY HUD */
+        [data-testid="stHeader"] {{ background: rgba(0,0,0,0.9) !important; border-bottom: 2px solid {main_color} !important; }}
         .sticky-hud {{
             position: sticky; top: 0; z-index: 9999; 
             background: #000; padding: 15px; border-bottom: 2px solid {main_color};
             box-shadow: 0 0 30px {main_color}66;
         }}
 
-        /* INFINITE LED TICKER */
+        /* LIVE LED TICKER */
         .ticker-wrap {{ width: 100%; overflow: hidden; background: #000; padding: 10px 0; white-space: nowrap; }}
         .ticker-content {{ display: inline-block; animation: marquee 60s linear infinite; }}
         @keyframes marquee {{ 0% {{ transform: translateX(0); }} 100% {{ transform: translateX(-50%); }} }}
@@ -44,7 +41,7 @@ def apply_stark_floor_ui(main_color="#00ffff"):
             margin: 0 10px; padding: 5px 15px; box-shadow: 0 0 10px {main_color}33;
         }}
 
-        /* HUD SECTION FRAMES */
+        /* STARK HUD FRAMES */
         .stark-frame {{
             position: relative; border: 1px solid {main_color}33;
             background: rgba(0,0,0,1); padding: 25px; margin: 20px 0;
@@ -58,80 +55,82 @@ def apply_stark_floor_ui(main_color="#00ffff"):
             border-bottom: 4px solid {main_color}; border-right: 4px solid {main_color};
         }}
 
-        /* DATA MATRIX */
-        .telemetry-grid {{
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 2px; width: 100%;
-        }}
-        .telemetry-tile {{
-            background: {main_color}05; border: 1px solid {main_color}22;
-            padding: 12px; transition: 0.2s;
-        }}
-        .telemetry-tile:hover {{ background: {main_color}15; border-color: {main_color}; }}
-        .tag {{ color: #444; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; }}
         .val {{ color: {main_color}; font-weight: bold; font-size: 14px; text-shadow: 0 0 10px {main_color}; }}
-
-        /* GUTTER DATA */
-        .gutter {{ position: fixed; top: 250px; font-size: 8px; color: {main_color}44; writing-mode: vertical-rl; letter-spacing: 4px; z-index: 1000; }}
-        .left-gutter {{ left: 5px; }} .right-gutter {{ right: 5px; }}
+        .telemetry-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px; }}
+        .telemetry-tile {{ background: {main_color}05; border: 1px solid {main_color}22; padding: 12px; }}
+        
         ::-webkit-scrollbar {{ display: none; }}
         </style>
-        <div class="gutter left-gutter">SIGNAL_STRENGTH_100% // UPLINK_STARK_CORE</div>
-        <div class="gutter right-gutter">ORDER_FLOW_SYNC_v.4.01 // ENCRYPTION_AES_256</div>
     """, unsafe_allow_html=True)
 
-# --- 2. COMMAND INTERCEPT & DATA PULL ---
+# --- 2. DATA COMMAND & LIVE TICKER CACHE ---
 ticker_input = st.sidebar.text_input("CMD_INPUT", "NVDA").upper()
 stock = yf.Ticker(ticker_input)
-info = stock.info  # Fetching the full dictionary
+info = stock.info # Instant dictionary fetch
 hist = stock.history(period="1d", interval="1m")
 
-# --- 3. DYNAMIC HUD EXECUTION ---
+# Generate Dynamic Color
 change = info.get('regularMarketChange', 0)
 dynamic_color = "#00ff00" if change >= 0 else "#ff0000"
-apply_stark_floor_ui(main_color=dynamic_color)
+apply_stark_ui(main_color=dynamic_color)
 
-# --- 4. INFINITE LED TICKER (WALL STREET FLOOR) ---
-tickers_list = ["AAPL", "NVDA", "TSLA", "MSFT", "GOOGL", "AMZN", "META", "AMD", "NFLX", "COIN"] * 6
+# --- 3. LIVE MULTI-TICKER DATA ---
+# Fetching actual prices for the top 10 tickers to replace static values
+top_tickers = ["AAPL", "NVDA", "TSLA", "MSFT", "GOOGL", "AMZN", "META", "AMD", "NFLX", "COIN"]
+ticker_data = yf.download(top_tickers, period="1d")['Close'].iloc[-1].to_dict()
+
 ticker_html = '<div class="ticker-wrap"><div class="ticker-content">'
-for t in tickers_list:
-    ticker_html += f'<div class="stock-box"><span class="val">{t}</span> <span style="margin-left:10px;">$184.21 ▲</span></div>'
-ticker_html += ticker_html + '</div></div>'
+for t, price in ticker_data.items():
+    ticker_html += f'<div class="stock-box"><span class="val">{t}</span> <span style="margin-left:10px;">${price:.2f}</span></div>'
+ticker_html += ticker_html + '</div></div>' # Loop for infinite scroll
 st.markdown(ticker_html, unsafe_allow_html=True)
 
-# --- 5. STICKY COMMAND HUD ---
+# --- 4. STICKY HUD ---
 st.markdown(f"""
     <div class="sticky-hud">
-        <h2 style='margin:0; letter-spacing: 12px;'>// J.A.R.V.I.S._OS_CORE: {datetime.now().strftime('%H:%M:%S')}</h2>
+        <h2 style='margin:0; letter-spacing: 12px;'>// J.A.R.V.I.S._OS_v.4.0: {datetime.now().strftime('%H:%M:%S')}</h2>
     </div>
 """, unsafe_allow_html=True)
 
-# --- 6. HOLOGRAPHIC GLOBE ---
-st.markdown('<div class="stark-frame"><span class="val">// GLOBAL_NODE_SURVEILLANCE</span>', unsafe_allow_html=True)
-map_fig = go.Figure(data=[dict(type='scattergeo', lat=[40, 35, 25], lon=[-74, 139, 55], mode='lines', line=dict(width=2, color=dynamic_color))])
-# FIXED: Using standard hex to prevent ValueError
+# --- 5. HOLOGRAPHIC NEURAL GLOBE ---
+st.markdown('<div class="stark-frame"><span class="val">// NEURAL_NODE_SURVEILLANCE</span>', unsafe_allow_html=True)
+
+# Create glowing connection arcs
+globe_data = [
+    dict(type='scattergeo', lat=[40, 35], lon=[-74, 139], mode='lines', line=dict(width=3, color=dynamic_color)),
+    dict(type='scattergeo', lat=[51, 1], lon=[-0, 103], mode='lines', line=dict(width=3, color=dynamic_color)),
+    dict(type='scattergeo', lat=[40, 51], lon=[-74, -0], mode='lines', line=dict(width=1, color="white", dash="dash"))
+]
+
+map_fig = go.Figure(data=globe_data)
 map_fig.update_geos(
-    projection_type="orthographic", showcoastlines=True, coastlinecolor="#004444", 
-    showland=True, landcolor="#000", bgcolor="black"
+    projection_type="orthographic",
+    showcoastlines=True, coastlinecolor=f"{dynamic_color}", # Wired coastline
+    showland=True, landcolor="#050505", # Dark holographic mass
+    showocean=True, oceancolor="#000",
+    showcountries=True, countrycolor=f"{dynamic_color}44",
+    bgcolor="black",
+    framecolor=dynamic_color,
+    lataxis_showgrid=True, lonaxis_showgrid=True, gridcolor="#111"
 )
-map_fig.update_layout(height=400, margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor="black")
+map_fig.update_layout(height=450, margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor="black")
 st.plotly_chart(map_fig, use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 7. SIGNAL STACK (Triple Charts) ---
-st.markdown('<div class="stark-frame"><span class="val">// QUANTUM_SIGNAL_FLOW</span>', unsafe_allow_html=True)
+# --- 6. QUANTUM SIGNAL FLOW (The Charts) ---
+st.markdown('<div class="stark-frame"><span class="val">// QUANTUM_SIGNAL_STACK</span>', unsafe_allow_html=True)
 fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.01)
 fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close']), row=1, col=1)
 fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], marker_color=dynamic_color), row=2, col=1)
-fig.add_trace(go.Scatter(x=hist.index, y=hist['Close'].rolling(14).mean(), line_color="#ffffff"), row=3, col=1)
+fig.add_trace(go.Scatter(x=hist.index, y=hist['Close'].rolling(14).mean(), line_color="#fff", opacity=0.5), row=3, col=1)
 fig.update_layout(template="plotly_dark", height=500, showlegend=False, xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0), plot_bgcolor='black', paper_bgcolor='black')
 st.plotly_chart(fig, use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 8. TELEMETRY MATRIX (100+ LINE WALL) ---
-st.markdown('<div class="stark-frame"><span class="val">// RAW_TELEMETRY_DUMP_v.2.0</span>', unsafe_allow_html=True)
+# --- 7. RAW TELEMETRY MATRIX (100+ LINE WALL) ---
+st.markdown('<div class="stark-frame"><span class="val">// RAW_TELEMETRY_DUMP_v.4.0</span>', unsafe_allow_html=True)
 st.markdown('<div class="telemetry-grid">', unsafe_allow_html=True)
 for key, value in info.items():
     if value and len(str(value)) < 45:
-        st.markdown(f'<div class="telemetry-tile"><div class="tag">{str(key).upper()}</div><div class="val">{str(value)}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="telemetry-tile"><div style="color:#333; font-size:9px;">{str(key).upper()}</div><div class="val">{str(value)}</div></div>', unsafe_allow_html=True)
 st.markdown('</div></div>', unsafe_allow_html=True)
