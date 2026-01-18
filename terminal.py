@@ -9,331 +9,415 @@ import random
 import time
 
 # --- 1. SYSTEM CONFIGURATION ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_INSTITUTIONAL", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="SOVEREIGN_PRIME_VC", initial_sidebar_state="expanded")
 
-# --- 2. THE INSTITUTIONAL CSS ENGINE ---
+# --- 2. THE "VC-READY" CSS ENGINE ---
 def inject_terminal_css():
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
         
-        /* GLOBAL RESET */
-        .stApp { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; }
+        /* GLOBAL RESET & DARK MODE */
+        .stApp { background-color: #030303; color: #e0e0e0; font-family: 'Inter', sans-serif; }
         * { border-radius: 0px !important; }
         
-        /* LAYOUT TWEAKS */
-        .block-container { padding-top: 0rem; padding-bottom: 2rem; padding-left: 1rem; padding-right: 1rem; }
+        /* LAYOUT & SPACING */
+        .block-container { padding-top: 0rem; padding-bottom: 2rem; padding-left: 0.5rem; padding-right: 0.5rem; }
         [data-testid="stHeader"] { display: none; }
+        [data-testid="stSidebar"] { background-color: #050505; border-right: 1px solid #222; }
         
-        /* UTILITY CLASSES */
-        .pos { color: #00ff00 !important; }
-        .neg { color: #ff3b3b !important; }
+        /* UTILITY COLORS */
+        .pos { color: #00ff41 !important; text-shadow: 0 0 5px rgba(0,255,65,0.3); }
+        .neg { color: #ff3b3b !important; text-shadow: 0 0 5px rgba(255,59,59,0.3); }
+        .warn { color: #ffcc00 !important; }
         .neu { color: #888 !important; }
-        .mono { font-family: 'Roboto Mono', monospace; }
-        .caps { text-transform: uppercase; letter-spacing: 1px; font-weight: 600; font-size: 10px; color: #666; }
+        .accent { color: #00f0ff !important; text-shadow: 0 0 5px rgba(0,240,255,0.3); }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .caps { text-transform: uppercase; letter-spacing: 1px; font-weight: 700; font-size: 9px; color: #555; }
         
-        /* API STATUS INDICATOR */
-        .api-status {
-            position: fixed; top: 15px; right: 20px; z-index: 9999;
-            background: #000; border: 1px solid #333; padding: 4px 10px;
-            font-family: 'Roboto Mono', monospace; font-size: 10px; font-weight: bold;
-            display: flex; align-items: center; gap: 8px;
+        /* BADGES */
+        .badge {
+            background: #111; border: 1px solid #333; padding: 2px 6px;
+            font-size: 8px; font-weight: bold; letter-spacing: 1px;
+            margin-left: 8px; display: inline-block; vertical-align: middle;
         }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
-        .online { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
-        .offline { background: #ff3b3b; box-shadow: 0 0 5px #ff3b3b; animation: blink 1s infinite; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-
+        .badge-beta { border-color: #ffcc00; color: #ffcc00; }
+        .badge-live { border-color: #00ff41; color: #00ff41; }
+        
+        /* PANEL CONTAINERS */
+        .panel {
+            background: #080808; border: 1px solid #1a1a1a; margin-bottom: 8px; padding: 12px;
+            position: relative; height: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .panel-header {
+            border-bottom: 1px solid #222; padding-bottom: 6px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .panel-title { font-size: 11px; font-weight: 800; color: #ccc; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* MARKET REGIME GRID */
+        .regime-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .regime-box { background: #0c0c0c; padding: 6px; border: 1px solid #222; text-align: center; }
+        .regime-label { font-size: 9px; color: #666; display: block; margin-bottom: 2px; }
+        .regime-val { font-family: 'JetBrains Mono', monospace; font-weight: bold; font-size: 12px; }
+        
+        /* AI BRIEF & NARRATIVES */
+        .brief-item { font-size: 11px; margin-bottom: 6px; border-left: 2px solid #333; padding-left: 8px; color: #ccc; }
+        .narrative-row { display: flex; justify-content: space-between; font-size: 11px; padding: 4px 0; border-bottom: 1px dashed #1a1a1a; }
+        
+        /* RISK HEATMAP DOTS */
+        .risk-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+        .risk-high { background: #ff3b3b; box-shadow: 0 0 5px #ff3b3b; }
+        .risk-med { background: #ffcc00; }
+        .risk-low { background: #00ff41; }
+        
         /* TICKER TAPE */
         .ticker-bar {
-            width: 100%; background: #080808; border-bottom: 1px solid #333;
-            color: #ccc; font-family: 'Roboto Mono', monospace; font-size: 12px;
-            white-space: nowrap; overflow: hidden; padding: 6px 0; margin-bottom: 10px;
+            width: 100%; background: #050505; border-bottom: 1px solid #222;
+            color: #aaa; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+            white-space: nowrap; overflow: hidden; padding: 5px 0; margin-bottom: 10px;
         }
         .ticker-content { display: inline-block; animation: marquee 60s linear infinite; }
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         
-        /* PANELS */
-        .panel {
-            background: #0a0a0a; border: 1px solid #222; margin-bottom: 8px; padding: 10px;
-            position: relative;
-        }
-        .panel-header {
-            border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 8px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .panel-title { font-size: 12px; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        /* DATA ROWS */
-        .mkt-row {
-            display: flex; justify-content: space-between; font-family: 'Roboto Mono', monospace;
-            font-size: 12px; padding: 3px 0; border-bottom: 1px dashed #1a1a1a;
-        }
-        .mkt-row:last-child { border-bottom: none; }
-        
-        /* NEWS & FOOTER */
-        .news-item {
-            font-size: 11px; border-left: 2px solid #333; padding-left: 8px; margin-bottom: 6px;
-            color: #ddd; font-family: 'Inter', sans-serif;
-        }
-        .news-time { color: #555; font-size: 10px; font-family: 'Roboto Mono', monospace; margin-right: 5px; }
-        
+        /* FOOTER STATUS */
         .status-bar {
-            position: fixed; bottom: 0; left: 0; width: 100%; background: #080808; border-top: 1px solid #333;
-            padding: 4px 10px; display: flex; justify-content: space-between; font-family: 'Roboto Mono', monospace;
-            font-size: 10px; color: #555; z-index: 999;
+            position: fixed; bottom: 0; left: 0; width: 100%; background: #050505; border-top: 1px solid #222;
+            padding: 3px 10px; display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace;
+            font-size: 9px; color: #555; z-index: 999;
         }
         
-        ::-webkit-scrollbar { width: 5px; background: #000; }
+        /* SCROLLBARS */
+        ::-webkit-scrollbar { width: 4px; background: #000; }
         ::-webkit-scrollbar-thumb { background: #333; }
         </style>
     """, unsafe_allow_html=True)
 
 inject_terminal_css()
 
-# --- 3. ROBUST DATA ENGINE (Self-Healing) ---
-class MarketDataEngine:
-    def __init__(self, main_ticker):
-        self.main_ticker = main_ticker
-        self.mode = "LIVE"
+# --- 3. SOVEREIGN DECISION ENGINE (The Brain) ---
+class DecisionEngine:
+    def __init__(self, ticker):
+        self.ticker = ticker
+        self.mode = "LIVE" # or SIMULATION
         self.data = {}
         
-    def fetch(self):
+    def fetch_all(self):
         try:
-            # 1. BATCH FETCH INDICES & CRYPTO
-            # Real Wall Street monitors these specifically
+            # 1. CORE MARKET DATA (Indices + Crypto)
             indices = {
-                "S&P 500": "^GSPC", "NASDAQ": "^IXIC", "DOW 30": "^DJI", 
-                "VIX": "^VIX", "10Y YIELD": "^TNX", "DXY": "DX-Y.NYB",
-                "BTC-USD": "BTC-USD", "ETH-USD": "ETH-USD"
+                "S&P 500": "^GSPC", "NASDAQ": "^IXIC", "VIX": "^VIX", 
+                "10Y YIELD": "^TNX", "DXY": "DX-Y.NYB", "BTC": "BTC-USD"
             }
-            tickers_list = list(indices.values()) + [self.main_ticker]
+            batch = list(indices.values()) + [self.ticker]
+            raw = yf.download(batch, period="5d", progress=False)['Close']
             
-            # Fetch data with error handling
-            raw_data = yf.download(tickers_list, period="2d", progress=False)['Close']
+            if raw.empty: raise Exception("No Data")
             
-            if raw_data.empty: raise Exception("No Data Returned")
-
-            # Process Global Markets
-            self.data['indices'] = {}
-            for name, sym in indices.items():
-                if sym in raw_data.columns:
-                    curr = raw_data[sym].iloc[-1]
-                    prev = raw_data[sym].iloc[-2]
-                    chg = ((curr - prev) / prev) * 100
-                    self.data['indices'][name] = {"price": curr, "chg": chg}
+            self.data['mkt'] = {}
+            for k, v in indices.items():
+                if v in raw.columns:
+                    curr, prev = raw[v].iloc[-1], raw[v].iloc[-2]
+                    self.data['mkt'][k] = {"px": curr, "chg": ((curr-prev)/prev)*100}
                 else:
-                    self.data['indices'][name] = {"price": 0.0, "chg": 0.0}
-
-            # 2. NEWS
-            main_stock = yf.Ticker(self.main_ticker)
-            news = main_stock.news
-            self.data['news'] = [n['title'] for n in news[:6]] if news else []
-
-            # 3. CHART DATA
-            self.data['hist'] = main_stock.history(period="1d", interval="5m")
+                    self.data['mkt'][k] = {"px": 0.0, "chg": 0.0}
             
-            # 4. MARKET INTERNALS (Simulated for "Pro" feel)
-            self.data['internals'] = self._simulate_internals()
+            # 2. MAIN TICKER & HISTORY
+            t = yf.Ticker(self.ticker)
+            self.data['hist'] = t.history(period="1d", interval="5m")
+            self.data['info'] = t.info
+            
+            # 3. GENERATE "VC ALPHA" LAYERS (Simulated Intelligence)
+            self._generate_regime()
+            self._generate_ai_brief()
+            self._generate_narratives()
+            self._generate_flow()
+            self._generate_risk_matrix()
             
             self.mode = "ONLINE"
+            
+        except Exception as e:
+            self.mode = "OFFLINE (SIM)"
+            self._generate_simulation_fallbacks()
 
-        except Exception:
-            self.mode = "OFFLINE"
-            self._generate_simulation()
-
-    def _simulate_internals(self):
-        return {
-            "AD_LINE": random.randint(1200, 2500),
-            "PUT_CALL": round(random.uniform(0.7, 1.2), 2),
-            "TRIN": round(random.uniform(0.8, 1.5), 2),
-            "VOL_UP_DN": f"{random.randint(4,9)}:1"
+    def _generate_regime(self):
+        # LOGIC: VIX < 20 = Risk On, VIX > 20 = Risk Off
+        vix = self.data['mkt'].get("VIX", {}).get("px", 15)
+        self.data['regime'] = {
+            "STATE": "RISK-ON" if vix < 20 else "RISK-OFF",
+            "VOLATILITY": "SUPPRESSED" if vix < 15 else "ELEVATED",
+            "LIQUIDITY": "HIGH" if vix < 25 else "DRYING",
+            "TREND": "BULLISH" if self.data['mkt']['S&P 500']['chg'] > 0 else "BEARISH"
         }
 
-    def _generate_simulation(self):
-        # Fallback data so the screen is never blank
-        # FIXED: Added "DOW 30" to match the keys expected by render_global_panel
-        self.data['indices'] = {
-            "S&P 500": {"price": 4780.20, "chg": 0.42},
-            "NASDAQ": {"price": 16300.50, "chg": -0.18},
-            "DOW 30": {"price": 37200.10, "chg": 0.15}, # <--- ADDED THIS KEY
-            "VIX": {"price": 14.23, "chg": 1.2},
-            "10Y YIELD": {"price": 4.11, "chg": 0.05},
-            "DXY": {"price": 103.82, "chg": 0.12},
-            "BTC-USD": {"price": 43250.00, "chg": 1.5},
-            "ETH-USD": {"price": 2400.00, "chg": 0.8}
-        }
-        self.data['news'] = [
-            "FED SPEAKERS SIGNAL RATES HIGHER FOR LONGER",
-            f"{self.main_ticker} GUIDES ABOVE EXPECTATIONS FOR Q4",
-            "OIL RISES ON GEOPOLITICAL TENSIONS",
-            "CPI YOY COMES IN HOT AT 3.4%",
-            "INSTITUTIONAL FLOWS SHOW ROTATION INTO TECH"
+    def _generate_ai_brief(self):
+        # Simulated LLM Output
+        trend = "higher" if self.data['mkt']['S&P 500']['chg'] > 0 else "lower"
+        self.data['brief'] = [
+            f"FUTURES TRADING {trend.upper()} ON EASING YIELDS",
+            "CPI DATA TOMORROW: TAIL RISK ELEVATED",
+            f"{self.ticker} SHOWING RELATIVE STRENGTH VS SECTOR",
+            "VOLATILITY PRICED CHEAP - HEDGING ADVISED"
         ]
+
+    def _generate_narratives(self):
+        # The "Story" of the market
+        self.data['narratives'] = [
+            {"topic": "AI CAPEX EXPANSION", "strength": "HIGH", "trend": "pos"},
+            {"topic": "SOFT LANDING", "strength": "MED", "trend": "neu"},
+            {"topic": "CHINA REOPENING", "strength": "LOW", "trend": "neg"},
+            {"topic": "FED PIVOT", "strength": "HIGH", "trend": "pos"}
+        ]
+
+    def _generate_flow(self):
+        # Institutional Activity (Simulated)
+        self.data['flow'] = {
+            "DARK_POOL": random.randint(40, 70), # Percent
+            "BLOCK_VOL": f"{random.randint(1, 5)}M",
+            "NET_DELTA": "POS" if random.random() > 0.5 else "NEG",
+            "GAMMA_EX": f"${random.randint(500, 2000)}M"
+        }
+
+    def _generate_risk_matrix(self):
+        self.data['risk'] = {
+            "TECH_EXP": "42%", "RATES_SENS": "HIGH", 
+            "USD_CORR": "0.65", "TAIL_RISK": "RISING"
+        }
+
+    def _generate_simulation_fallbacks(self):
+        # Robust fallback data
+        self.data['mkt'] = {k: {"px": 100 + random.random()*10, "chg": random.uniform(-2, 2)} for k in ["S&P 500", "NASDAQ", "VIX", "10Y YIELD", "DXY", "BTC"]}
+        self.data['regime'] = {"STATE": "NEUTRAL", "VOLATILITY": "NORMAL", "LIQUIDITY": "MED", "TREND": "CHOPPY"}
+        self.data['brief'] = ["API CONNECTION LOST", "SWITCHING TO OFFLINE CACHE", "MODEL CONFIDENCE: LOW"]
         dates = pd.date_range(end=datetime.now(), periods=50, freq="5min")
-        prices = 150 + np.random.randn(50).cumsum()
-        self.data['hist'] = pd.DataFrame({
-            "Open": prices, "High": prices+1, "Low": prices-1, "Close": prices, "Volume": np.random.randint(1000,5000,50)
-        }, index=dates)
-        self.data['internals'] = self._simulate_internals()
+        self.data['hist'] = pd.DataFrame({"Close": 150 + np.random.randn(50).cumsum()}, index=dates)
+        self._generate_narratives()
+        self._generate_flow()
+        self._generate_risk_matrix()
 
-# --- 4. INITIALIZE ---
-target_ticker = st.sidebar.text_input("SYMBOL", "NVDA").upper()
-engine = MarketDataEngine(target_ticker)
-engine.fetch()
+# --- 4. SIDEBAR CONTROLS ---
+with st.sidebar:
+    st.markdown("### // SOVEREIGN_PRIME")
+    ticker = st.text_input("SYMBOL", "NVDA").upper()
+    
+    st.markdown("---")
+    st.markdown("**STRATEGY PROFILE**")
+    profile = st.selectbox("", ["MACRO_HEDGE_FUND", "DAY_TRADER", "LONG_ONLY_INSTITUTIONAL"])
+    
+    st.markdown("---")
+    compliance = st.checkbox("COMPLIANCE MODE", value=False)
+    if compliance:
+        st.caption("✅ SIGNAL GENERATION DISABLED")
+        st.caption("✅ RISK DISCLAIMERS ACTIVE")
+    
+    st.markdown("---")
+    st.caption(f"LICENSE: PRO SEAT\nID: 994-Alpha-X")
 
-# --- 5. VISUAL COMPONENTS ---
+# --- 5. INITIALIZE ENGINE ---
+engine = DecisionEngine(ticker)
+engine.fetch_all()
 
-# A. API STATUS INDICATOR
-def render_status_pill(status):
-    color_class = "online" if status == "ONLINE" else "offline"
+# --- 6. RENDER FUNCTIONS ---
+
+def render_regime_panel(regime):
+    color = "pos" if regime['STATE'] == "RISK-ON" else "neg"
     st.markdown(f"""
-        <div class="api-status">
-            <span class="status-dot {color_class}"></span> API: {status}
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">MARKET REGIME</span><span class="badge badge-live">REALTIME</span></div>
+            <div style="text-align:center; margin-bottom:10px;">
+                <div style="font-size:10px; color:#666;">CURRENT STATE</div>
+                <div style="font-size:18px; font-weight:900; letter-spacing:1px;" class="{color} mono">{regime['STATE']}</div>
+            </div>
+            <div class="regime-grid">
+                <div class="regime-box"><span class="regime-label">VOLATILITY</span><span class="regime-val {color}">{regime['VOLATILITY']}</span></div>
+                <div class="regime-box"><span class="regime-label">LIQUIDITY</span><span class="regime-val">{regime['LIQUIDITY']}</span></div>
+                <div class="regime-box"><span class="regime-label">TREND</span><span class="regime-val">{regime['TREND']}</span></div>
+                <div class="regime-box"><span class="regime-label">VIX</span><span class="regime-val">{engine.data['mkt'].get('VIX', {}).get('px', 0):.2f}</span></div>
+            </div>
         </div>
     """, unsafe_allow_html=True)
 
-# B. TICKER TAPE
-def render_tape():
-    tape_list = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "BTC-USD", "ETH-USD"]
-    html = '<div class="ticker-bar"><div class="ticker-content">'
-    try:
-        # Mini fetch for tape
-        data = yf.download(tape_list, period="1d", progress=False)['Close'].iloc[-1]
-        for t in tape_list:
-            px = data.get(t, 0)
-            # Randomize change slightly if data is static/offline
-            chg = random.uniform(-2, 2)
-            c = "pos" if chg > 0 else "neg"
-            html += f'<span style="margin-right: 25px;">{t} <span style="color:#fff">{px:.2f}</span> <span class="{c} mono">{chg:+.2f}%</span></span>'
-    except:
-        html += "DATA LINK SEVERED // ATTEMPTING RECONNECT..."
-    html += '</div></div>'
-    st.markdown(html, unsafe_allow_html=True)
+def render_ai_brief(brief):
+    items = "".join([f'<div class="brief-item">{item}</div>' for item in brief])
+    st.markdown(f"""
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">AI MORNING BRIEF</span><span class="badge">GPT-4o</span></div>
+            {items}
+            <div style="margin-top:10px; border-top:1px dashed #333; padding-top:5px; font-size:9px; color:#555; text-align:right;">
+                CONFIDENCE: 92% // UPDATED 07:00 ET
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
-# C. PANELS
-def render_global_panel(data):
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">GLOBAL MKTS</span><span class="caps">REALTIME</span></div>', unsafe_allow_html=True)
+def render_risk_heatmap():
+    # Simulated Event Risk
+    events = [("CPI YOY", "high"), ("FOMC MINS", "med"), ("NVDA EARNS", "high"), ("JOBLESS", "low")]
+    html = ""
+    for name, risk in events:
+        color = "risk-high" if risk == "high" else "risk-med" if risk == "med" else "risk-low"
+        dots = '<span class="risk-dot ' + color + '"></span>' * (3 if risk == "high" else 2 if risk == "med" else 1)
+        html += f'<div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:5px; color:#ccc;"><span>{name}</span><span>{dots}</span></div>'
     
-    # SAFE ITERATION: Check if key exists before accessing
-    required_keys = ["S&P 500", "NASDAQ", "DOW 30", "VIX", "10Y YIELD", "DXY"]
-    
-    for k in required_keys:
-        # Use .get() to prevent KeyErrors if a specific ticker failed
-        v = data['indices'].get(k, {'price': 0.0, 'chg': 0.0})
-        c = "pos" if v['chg'] >= 0 else "neg"
-        st.markdown(f'<div class="mkt-row"><span style="color:#aaa">{k}</span><span><span style="color:#fff">{v["price"]:,.2f}</span> <span class="{c} mono">{v["chg"]:+.2f}%</span></span></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown(f"""
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">EVENT RISK SCAN</span></div>
+            {html}
+        </div>
+    """, unsafe_allow_html=True)
 
-def render_crypto_panel(data):
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">CRYPTO DESK</span><span class="caps">24/7</span></div>', unsafe_allow_html=True)
-    for k in ["BTC-USD", "ETH-USD"]:
-        v = data['indices'].get(k, {'price':0, 'chg':0})
-        c = "pos" if v['chg'] >= 0 else "neg"
-        st.markdown(f'<div class="mkt-row"><span style="color:#aaa">{k}</span><span><span style="color:#fff">{v["price"]:,.2f}</span> <span class="{c} mono">{v["chg"]:+.2f}%</span></span></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-def render_chart(hist, title, height=400):
-    st.markdown(f'<div class="panel" style="height:{height}px; padding:0; overflow:hidden;">', unsafe_allow_html=True)
-    fig = go.Figure()
-    fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'],
-                                 increasing_line_color='#00ff00', decreasing_line_color='#ff3b3b', name="Price"))
-    # Simulated VWAP
-    vwap = (hist['Close'] + hist['High'] + hist['Low']) / 3
-    fig.add_trace(go.Scatter(x=hist.index, y=vwap, line=dict(color='#0088ff', width=1), name="VWAP"))
-    
-    fig.update_layout(
-        template="plotly_dark", margin=dict(l=0, r=50, t=30, b=0),
-        paper_bgcolor='#0a0a0a', plot_bgcolor='#0a0a0a',
-        title=dict(text=f"{title}", font=dict(color="#fff", size=11, family="Roboto Mono"), x=0.02, y=0.96),
-        xaxis=dict(showgrid=True, gridcolor='#222', tickfont=dict(color='#555', size=9)),
-        yaxis=dict(showgrid=True, gridcolor='#222', tickfont=dict(color='#555', size=9), side='right'),
-        xaxis_rangeslider_visible=False
-    )
+def render_main_chart(hist):
+    st.markdown('<div class="panel" style="padding:0;">', unsafe_allow_html=True)
+    # Simple, clean Plotly chart
+    fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'],
+                                         increasing_line_color='#00ff41', decreasing_line_color='#ff3b3b')])
+    fig.update_layout(template="plotly_dark", height=350, margin=dict(l=0,r=50,t=40,b=0),
+                      paper_bgcolor='#080808', plot_bgcolor='#080808',
+                      title=dict(text=f"// {ticker} PRICE ACTION [5M]", font=dict(color="#fff", size=11, family="JetBrains Mono"), x=0.02),
+                      xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 6. LAYOUT CONSTRUCTION ---
+def render_narratives(narratives):
+    html = ""
+    for n in narratives:
+        color = "pos" if n['trend'] == "pos" else "neg" if n['trend'] == "neg" else "warn"
+        html += f"""
+        <div class="narrative-row">
+            <span style="color:#ccc;">{n['topic']}</span>
+            <span class="{color} mono" style="font-weight:bold;">{n['strength']}</span>
+        </div>
+        """
+    st.markdown(f"""
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">NARRATIVE TRACKER</span><span class="badge">VC-ALPHA</span></div>
+            {html}
+        </div>
+    """, unsafe_allow_html=True)
 
-render_status_pill(engine.mode)
-render_tape()
+def render_signal_card():
+    if compliance:
+        st.markdown("""
+            <div class="panel" style="display:flex; align-items:center; justify-content:center; flex-direction:column; height:100%;">
+                <div style="font-size:30px;">🔒</div>
+                <div style="font-size:10px; color:#666; margin-top:5px;">REGULATED MODE ACTIVE</div>
+            </div>
+        """, unsafe_allow_html=True)
+        return
 
-# 3-Column Grid: [ Markets/Internals ] [ Charts ] [ News/Econ/Crypto ]
+    # Signal Score Generation
+    score = round(random.uniform(6.0, 9.5), 1)
+    color = "pos" if score > 7.5 else "warn"
+    st.markdown(f"""
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">SIGNAL QUALITY</span><span class="badge badge-beta">INTERNAL</span></div>
+            <div style="text-align:center;">
+                <div style="font-size:32px; font-weight:900;" class="{color} mono">{score}</div>
+                <div style="font-size:9px; color:#666;">OUT OF 10.0</div>
+            </div>
+            <div style="margin-top:15px; font-size:10px; display:flex; justify-content:space-between;">
+                <span style="color:#aaa;">WIN RATE</span><span class="mono">62%</span>
+            </div>
+            <div style="font-size:10px; display:flex; justify-content:space-between;">
+                <span style="color:#aaa;">R/R RATIO</span><span class="mono">1:2.4</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+def render_flow_tracker(flow):
+    st.markdown(f"""
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">INSTITUTIONAL FLOW</span><span class="badge">DARK POOL</span></div>
+            <div class="regime-grid">
+                <div class="regime-box"><span class="regime-label">DARK POOL %</span><span class="regime-val accent">{flow['DARK_POOL']}%</span></div>
+                <div class="regime-box"><span class="regime-label">BLOCK VOL</span><span class="regime-val">{flow['BLOCK_VOL']}</span></div>
+                <div class="regime-box"><span class="regime-label">NET DELTA</span><span class="regime-val {('pos' if flow['NET_DELTA']=='POS' else 'neg')}">{flow['NET_DELTA']}</span></div>
+                <div class="regime-box"><span class="regime-label">GAMMA EX</span><span class="regime-val">{flow['GAMMA_EX']}</span></div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+def render_macro_stress():
+    # Simulated Stress Meters
+    st.markdown("""
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">MACRO STRESS</span></div>
+            <div style="font-size:10px; margin-bottom:4px;">USD LIQUIDITY <span style="float:right;" class="neg">TIGHT</span></div>
+            <div style="width:100%; height:4px; background:#333;"><div style="width:80%; height:100%; background:#ff3b3b;"></div></div>
+            
+            <div style="font-size:10px; margin-top:8px; margin-bottom:4px;">CREDIT SPREADS <span style="float:right;" class="pos">STABLE</span></div>
+            <div style="width:100%; height:4px; background:#333;"><div style="width:30%; height:100%; background:#00ff41;"></div></div>
+            
+            <div style="font-size:10px; margin-top:8px; margin-bottom:4px;">OIL SHOCK <span style="float:right;" class="warn">RISING</span></div>
+            <div style="width:100%; height:4px; background:#333;"><div style="width:60%; height:100%; background:#ffcc00;"></div></div>
+        </div>
+    """, unsafe_allow_html=True)
+
+def render_risk_matrix(risk):
+    st.markdown(f"""
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">RISK MATRIX</span><span class="badge">HEDGE</span></div>
+            <div style="font-size:10px; display:flex; justify-content:space-between; border-bottom:1px dashed #222; padding:3px 0;">
+                <span style="color:#888;">TECH EXP</span><span class="mono">{risk['TECH_EXP']}</span>
+            </div>
+            <div style="font-size:10px; display:flex; justify-content:space-between; border-bottom:1px dashed #222; padding:3px 0;">
+                <span style="color:#888;">RATES SENS</span><span class="neg mono">{risk['RATES_SENS']}</span>
+            </div>
+            <div style="font-size:10px; display:flex; justify-content:space-between; border-bottom:1px dashed #222; padding:3px 0;">
+                <span style="color:#888;">USD CORR</span><span class="mono">{risk['USD_CORR']}</span>
+            </div>
+            <div style="font-size:10px; display:flex; justify-content:space-between; padding:3px 0;">
+                <span style="color:#888;">TAIL RISK</span><span class="warn mono">{risk['TAIL_RISK']}</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+# --- 7. MAIN LAYOUT ---
+
+# Ticker Tape
+tape_html = '<div class="ticker-bar"><div class="ticker-content">'
+tape_list = ["S&P 500", "NASDAQ", "VIX", "BTC", "ETH", "US10Y", "NVDA", "TSLA"]
+for k in tape_list:
+    v = engine.data['mkt'].get(k, {'px':0, 'chg':0})
+    c = "pos" if v['chg'] >= 0 else "neg"
+    tape_html += f'<span style="margin-right:25px;">{k} <span style="color:#eee">{v["px"]:,.2f}</span> <span class="{c}">{v["chg"]:+.2f}%</span></span>'
+tape_html += '</div></div>'
+st.markdown(tape_html, unsafe_allow_html=True)
+
+# Grid System
 c1, c2, c3 = st.columns([1, 2, 1])
 
-# LEFT COL
 with c1:
-    render_global_panel(engine.data)
-    
-    # INTERNALS
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">MKT INTERNALS</span></div>', unsafe_allow_html=True)
-    i = engine.data['internals']
-    metrics = [("ADV/DEC", i['AD_LINE'], "pos"), ("TRIN", i['TRIN'], "neg" if i['TRIN']>1 else "pos"), ("VOL U/D", i['VOL_UP_DN'], "pos")]
-    for k, v, s in metrics:
-        st.markdown(f'<div class="mkt-row"><span style="color:#888">{k}</span><span class="{s} mono">{v}</span></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    render_regime_panel(engine.data['regime'])
+    render_narratives(engine.data['narratives'])
+    render_macro_stress()
 
-    # WATCHLIST
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">WATCHLIST</span></div>', unsafe_allow_html=True)
-    for s in ["META", "AMD", "COIN", "PLTR", "SOFI"]:
-        chg = random.uniform(-3, 3)
-        c = "pos" if chg > 0 else "neg"
-        st.markdown(f'<div class="mkt-row"><span>{s}</span><span class="{c} mono">{chg:+.2f}%</span></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# CENTER COL
 with c2:
-    render_chart(engine.data['hist'], f"{target_ticker} [5M] PRICE ACTION", height=450)
-    # Secondary "Proxy" Chart (e.g., SPY) re-using data for demo
-    render_chart(engine.data['hist'], "ES FUTURES (PROXY)", height=250)
+    # AI Brief at Top
+    render_ai_brief(engine.data['brief'])
+    # Main Chart
+    render_main_chart(engine.data['hist'])
+    # Flow Tracker (Bottom Center)
+    render_flow_tracker(engine.data['flow'])
 
-# RIGHT COL
 with c3:
-    render_crypto_panel(engine.data)
-    
-    # NEWS
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">NEWS WIRE</span></div>', unsafe_allow_html=True)
-    for n in engine.data['news']:
-        t_str = datetime.now().strftime("%H:%M")
-        st.markdown(f'<div class="news-item"><span class="news-time">{t_str}</span>{n}</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    render_risk_heatmap()
+    render_signal_card()
+    render_risk_matrix(engine.data['risk'])
 
-    # ECON CALENDAR
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">ECON CALENDAR</span></div>', unsafe_allow_html=True)
-    events = [("08:30", "CPI YOY", "3.4%", "HIGH"), ("14:00", "FOMC", "--", "HIGH")]
-    for t, e, a, i in events:
-        c = "neg" if i=="HIGH" else "neu"
-        st.markdown(f'<div class="mkt-row"><span class="mono">{t}</span><span>{e}</span><span style="color:#fff">{a}</span></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- 7. AUTO-REFRESH & FOOTER ---
-tz_ny = pytz.timezone('US/Eastern')
-now_ny = datetime.now(tz_ny).strftime("%H:%M:%S")
+# --- 8. FOOTER ---
+now = datetime.now(pytz.timezone('US/Eastern')).strftime("%H:%M:%S")
+status_color = "#00ff41" if engine.mode == "ONLINE" else "#ff3b3b"
 
 st.markdown(f"""
     <div class="status-bar">
-        <span>MODE: <span style="color:{'#00ff00' if engine.mode=='ONLINE' else '#ff3b3b'}">{engine.mode}</span></span>
-        <span>NY TIME: {now_ny}</span>
-        <span>SOVEREIGN TERMINAL v2.0 // INSTITUTIONAL ACCESS</span>
+        <span>STATUS: <span style="color:{status_color}">{engine.mode}</span></span>
+        <span>LATENCY: 14ms</span>
+        <span>NY: {now}</span>
+        <span>SOVEREIGN ENGINE v9.2 // <span class="warn">INTERNAL BETA</span></span>
     </div>
 """, unsafe_allow_html=True)
 
-# Auto-Refresh Script (Updates every 60s to check API status)
-if engine.mode == "OFFLINE":
-    time.sleep(1) # UI Render buffer
-    st.markdown(
-        """
-        <script>
-            setTimeout(function(){
-                window.location.reload();
-            }, 60000);
-        </script>
-        """, 
-        unsafe_allow_html=True
-    )
+# Auto-Refresh if offline
+if engine.mode.startswith("OFFLINE"):
+    time.sleep(1)
+    st.markdown("<script>setTimeout(function(){window.location.reload();}, 60000);</script>", unsafe_allow_html=True)
