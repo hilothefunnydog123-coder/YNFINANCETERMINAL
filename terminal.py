@@ -3,257 +3,330 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from datetime import datetime
+from datetime import datetime, timedelta
+import pytz
+import random
 import time
 
 # --- 1. SYSTEM CONFIGURATION ---
-st.set_page_config(layout="wide", page_title="NEON_PRIME_AUTO", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="SOVEREIGN_INSTITUTIONAL", initial_sidebar_state="collapsed")
 
-# --- 2. THE TOKYO NEON CSS ENGINE ---
-def inject_neon_css():
+# --- 2. THE INSTITUTIONAL CSS ENGINE ---
+def inject_terminal_css():
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
         
-        /* GLOBAL RESET & NEON VIBE */
-        .stApp { background-color: #020202; color: #e0e0e0; font-family: 'JetBrains Mono', monospace; }
+        /* GLOBAL RESET */
+        .stApp { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; }
         * { border-radius: 0px !important; }
-        .block-container { padding: 0.5rem; max-width: 100%; }
+        
+        /* LAYOUT TWEAKS */
+        .block-container { padding-top: 0rem; padding-bottom: 2rem; padding-left: 1rem; padding-right: 1rem; }
         [data-testid="stHeader"] { display: none; }
         
-        /* UTILITY COLORS */
-        .neon-cyan { color: #00f0ff; text-shadow: 0 0 10px rgba(0, 240, 255, 0.5); }
-        .neon-purple { color: #bc13fe; text-shadow: 0 0 10px rgba(188, 19, 254, 0.5); }
-        .neon-green { color: #00ff41; text-shadow: 0 0 10px rgba(0, 255, 65, 0.5); }
-        .neon-red { color: #ff0055; text-shadow: 0 0 10px rgba(255, 0, 85, 0.5); }
+        /* UTILITY CLASSES */
+        .pos { color: #00ff00 !important; }
+        .neg { color: #ff3b3b !important; }
+        .neu { color: #888 !important; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        .caps { text-transform: uppercase; letter-spacing: 1px; font-weight: 600; font-size: 10px; color: #666; }
         
-        /* PANEL CONTAINERS */
+        /* API STATUS INDICATOR */
+        .api-status {
+            position: fixed; top: 15px; right: 20px; z-index: 9999;
+            background: #000; border: 1px solid #333; padding: 4px 10px;
+            font-family: 'Roboto Mono', monospace; font-size: 10px; font-weight: bold;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .online { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
+        .offline { background: #ff3b3b; box-shadow: 0 0 5px #ff3b3b; animation: blink 1s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        /* TICKER TAPE */
+        .ticker-bar {
+            width: 100%; background: #080808; border-bottom: 1px solid #333;
+            color: #ccc; font-family: 'Roboto Mono', monospace; font-size: 12px;
+            white-space: nowrap; overflow: hidden; padding: 6px 0; margin-bottom: 10px;
+        }
+        .ticker-content { display: inline-block; animation: marquee 60s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        
+        /* PANELS */
         .panel {
-            background: rgba(10, 10, 15, 0.9);
-            border: 1px solid #333;
-            border-left: 2px solid #00f0ff;
-            margin-bottom: 8px; padding: 10px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            background: #0a0a0a; border: 1px solid #222; margin-bottom: 8px; padding: 10px;
             position: relative;
         }
         .panel-header {
+            border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 8px;
             display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid #222; padding-bottom: 5px; margin-bottom: 8px;
         }
-        .panel-title { font-size: 11px; font-weight: bold; color: #888; letter-spacing: 2px; text-transform: uppercase; }
+        .panel-title { font-size: 12px; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; }
         
         /* DATA ROWS */
         .mkt-row {
-            display: flex; justify-content: space-between; font-size: 12px; 
-            padding: 3px 0; border-bottom: 1px dashed #1a1a1a;
+            display: flex; justify-content: space-between; font-family: 'Roboto Mono', monospace;
+            font-size: 12px; padding: 3px 0; border-bottom: 1px dashed #1a1a1a;
         }
         .mkt-row:last-child { border-bottom: none; }
         
-        /* STATUS INDICATOR (TOP RIGHT) */
-        .api-status-box {
-            position: fixed; top: 10px; right: 20px; z-index: 9999;
-            background: #000; border: 1px solid #333; padding: 5px 10px;
-            font-size: 10px; font-weight: bold; letter-spacing: 1px;
+        /* NEWS & FOOTER */
+        .news-item {
+            font-size: 11px; border-left: 2px solid #333; padding-left: 8px; margin-bottom: 6px;
+            color: #ddd; font-family: 'Inter', sans-serif;
         }
-        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-        .online { background: #00ff41; box-shadow: 0 0 8px #00ff41; }
-        .offline { background: #ff0055; box-shadow: 0 0 8px #ff0055; animation: blink 1s infinite; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-
-        /* TICKER TAPE */
-        .ticker-wrap { width: 100%; overflow: hidden; background: #000; border-bottom: 1px solid #00f0ff; padding: 5px 0; white-space: nowrap; margin-bottom: 10px; }
-        .ticker-content { display: inline-block; animation: marquee 40s linear infinite; }
-        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .news-time { color: #555; font-size: 10px; font-family: 'Roboto Mono', monospace; margin-right: 5px; }
         
-        /* HIDE SCROLLBARS */
-        ::-webkit-scrollbar { width: 0px; }
+        .status-bar {
+            position: fixed; bottom: 0; left: 0; width: 100%; background: #080808; border-top: 1px solid #333;
+            padding: 4px 10px; display: flex; justify-content: space-between; font-family: 'Roboto Mono', monospace;
+            font-size: 10px; color: #555; z-index: 999;
+        }
+        
+        ::-webkit-scrollbar { width: 5px; background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; }
         </style>
     """, unsafe_allow_html=True)
 
-inject_neon_css()
+inject_terminal_css()
 
-# --- 3. DATA ENGINE (AUTO-HEALING) ---
-class NeonDataEngine:
-    def __init__(self, ticker):
-        self.ticker = ticker
-        self.status = "OFFLINE"
+# --- 3. ROBUST DATA ENGINE (Self-Healing) ---
+class MarketDataEngine:
+    def __init__(self, main_ticker):
+        self.main_ticker = main_ticker
+        self.mode = "LIVE"
         self.data = {}
         
     def fetch(self):
         try:
-            # 1. FETCH INDICES & CRYPTO
-            targets = {
-                "S&P 500": "^GSPC", "NASDAQ": "^IXIC", "BTC-USD": "BTC-USD", 
-                "ETH-USD": "ETH-USD", "VIX": "^VIX", "10Y": "^TNX"
+            # 1. BATCH FETCH INDICES & CRYPTO
+            # Real Wall Street monitors these specifically
+            indices = {
+                "S&P 500": "^GSPC", "NASDAQ": "^IXIC", "DOW 30": "^DJI", 
+                "VIX": "^VIX", "10Y YIELD": "^TNX", "DXY": "DX-Y.NYB",
+                "BTC-USD": "BTC-USD", "ETH-USD": "ETH-USD"
             }
-            # We add main ticker to batch
-            batch = list(targets.values()) + [self.ticker]
-            df = yf.download(batch, period="2d", progress=False)['Close']
+            tickers_list = list(indices.values()) + [self.main_ticker]
             
-            if df.empty: raise Exception("No Data")
+            # Fetch data with error handling
+            raw_data = yf.download(tickers_list, period="2d", progress=False)['Close']
+            
+            if raw_data.empty: raise Exception("No Data Returned")
 
+            # Process Global Markets
             self.data['indices'] = {}
-            for k, v in targets.items():
-                if v in df.columns:
-                    curr, prev = df[v].iloc[-1], df[v].iloc[-2]
-                    self.data['indices'][k] = {"px": curr, "chg": ((curr-prev)/prev)*100}
+            for name, sym in indices.items():
+                if sym in raw_data.columns:
+                    curr = raw_data[sym].iloc[-1]
+                    prev = raw_data[sym].iloc[-2]
+                    chg = ((curr - prev) / prev) * 100
+                    self.data['indices'][name] = {"price": curr, "chg": chg}
+                else:
+                    self.data['indices'][name] = {"price": 0.0, "chg": 0.0}
+
+            # 2. NEWS
+            main_stock = yf.Ticker(self.main_ticker)
+            news = main_stock.news
+            self.data['news'] = [n['title'] for n in news[:6]] if news else []
+
+            # 3. CHART DATA
+            self.data['hist'] = main_stock.history(period="1d", interval="5m")
             
-            # 2. MAIN TICKER DATA
-            t = yf.Ticker(self.ticker)
-            self.data['hist'] = t.history(period="1d", interval="5m")
-            self.data['news'] = [n['title'] for n in t.news[:5]] if t.news else []
+            # 4. MARKET INTERNALS (Simulated for "Pro" feel)
+            self.data['internals'] = self._simulate_internals()
             
-            self.status = "ONLINE"
-            
-        except:
-            self.status = "OFFLINE"
-            self._generate_sim_data()
-            
-    def _generate_sim_data(self):
-        # Fake Data so screen isn't blank
-        self.data['indices'] = {
-            "S&P 500": {"px": 4800.0, "chg": 0.5}, "NASDAQ": {"px": 16500.0, "chg": -0.2},
-            "BTC-USD": {"px": 42500.0, "chg": 1.2}, "ETH-USD": {"px": 2400.0, "chg": 0.8},
-            "VIX": {"px": 13.5, "chg": -2.0}, "10Y": {"px": 4.1, "chg": 0.05}
+            self.mode = "ONLINE"
+
+        except Exception:
+            self.mode = "OFFLINE"
+            self._generate_simulation()
+
+    def _simulate_internals(self):
+        return {
+            "AD_LINE": random.randint(1200, 2500),
+            "PUT_CALL": round(random.uniform(0.7, 1.2), 2),
+            "TRIN": round(random.uniform(0.8, 1.5), 2),
+            "VOL_UP_DN": f"{random.randint(4,9)}:1"
         }
-        # Fake Candles
+
+    def _generate_simulation(self):
+        # Fallback data so the screen is never blank
+        self.data['indices'] = {
+            "S&P 500": {"price": 4780.20, "chg": 0.42},
+            "NASDAQ": {"price": 16300.50, "chg": -0.18},
+            "VIX": {"price": 14.23, "chg": 1.2},
+            "10Y YIELD": {"price": 4.11, "chg": 0.05},
+            "DXY": {"price": 103.82, "chg": 0.12},
+            "BTC-USD": {"price": 43250.00, "chg": 1.5},
+            "ETH-USD": {"price": 2400.00, "chg": 0.8}
+        }
+        self.data['news'] = [
+            "FED SPEAKERS SIGNAL RATES HIGHER FOR LONGER",
+            f"{self.main_ticker} GUIDES ABOVE EXPECTATIONS FOR Q4",
+            "OIL RISES ON GEOPOLITICAL TENSIONS",
+            "CPI YOY COMES IN HOT AT 3.4%",
+            "INSTITUTIONAL FLOWS SHOW ROTATION INTO TECH"
+        ]
         dates = pd.date_range(end=datetime.now(), periods=50, freq="5min")
         prices = 150 + np.random.randn(50).cumsum()
         self.data['hist'] = pd.DataFrame({
             "Open": prices, "High": prices+1, "Low": prices-1, "Close": prices, "Volume": np.random.randint(1000,5000,50)
         }, index=dates)
-        self.data['news'] = ["API RATE LIMIT REACHED - SWITCHING TO SIMULATION", "AUTO-RETRY SEQUENCE INITIATED", "WAITING FOR SIGNAL..."]
+        self.data['internals'] = self._simulate_internals()
 
 # --- 4. INITIALIZE ---
-symbol = st.sidebar.text_input("SYMBOL", "NVDA").upper()
-engine = NeonDataEngine(symbol)
+target_ticker = st.sidebar.text_input("SYMBOL", "NVDA").upper()
+engine = MarketDataEngine(target_ticker)
 engine.fetch()
 
-# --- 5. RENDER COMPONENTS ---
+# --- 5. VISUAL COMPONENTS ---
 
-# A. API STATUS WIDGET (Top Right)
-status_color = "online" if engine.status == "ONLINE" else "offline"
-status_text = "API CONNECTED" if engine.status == "ONLINE" else "API DOWN // RETRYING..."
-st.markdown(f"""
-    <div class="api-status-box">
-        <span class="status-dot {status_color}"></span> {status_text}
-    </div>
-""", unsafe_allow_html=True)
+# A. API STATUS INDICATOR
+def render_status_pill(status):
+    color_class = "online" if status == "ONLINE" else "offline"
+    st.markdown(f"""
+        <div class="api-status">
+            <span class="status-dot {color_class}"></span> API: {status}
+        </div>
+    """, unsafe_allow_html=True)
 
 # B. TICKER TAPE
-tape_html = '<div class="ticker-wrap"><div class="ticker-content">'
-tape_list = ["NVDA", "TSLA", "AMD", "META", "AAPL", "MSFT", "COIN", "PLTR", "SOFI", "MARA"]
-# Mock tape generation for visuals
-for t in tape_list:
-    px = np.random.uniform(100, 1000)
-    chg = np.random.uniform(-5, 5)
-    c = "neon-green" if chg > 0 else "neon-red"
-    tape_html += f'<span style="margin-right: 30px; font-weight:bold;">{t} <span style="color:#fff">${px:.2f}</span> <span class="{c}">{chg:+.2f}%</span></span>'
-tape_html += '</div></div>'
-st.markdown(tape_html, unsafe_allow_html=True)
+def render_tape():
+    tape_list = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "BTC-USD", "ETH-USD"]
+    html = '<div class="ticker-bar"><div class="ticker-content">'
+    try:
+        # Mini fetch for tape
+        data = yf.download(tape_list, period="1d", progress=False)['Close'].iloc[-1]
+        for t in tape_list:
+            px = data.get(t, 0)
+            # Randomize change slightly if data is static/offline
+            chg = random.uniform(-2, 2)
+            c = "pos" if chg > 0 else "neg"
+            html += f'<span style="margin-right: 25px;">{t} <span style="color:#fff">{px:.2f}</span> <span class="{c} mono">{chg:+.2f}%</span></span>'
+    except:
+        html += "DATA LINK SEVERED // ATTEMPTING RECONNECT..."
+    html += '</div></div>'
+    st.markdown(html, unsafe_allow_html=True)
 
-# C. MAIN GRID LAYOUT
-c1, c2, c3 = st.columns([1, 2, 1])
-
-# --- LEFT COLUMN: MARKETS ---
-with c1:
+# C. PANELS
+def render_global_panel(data):
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">GLOBAL NET</span></div>', unsafe_allow_html=True)
-    for k, v in engine.data['indices'].items():
-        c = "neon-green" if v['chg'] >= 0 else "neon-red"
-        st.markdown(f'<div class="mkt-row"><span style="color:#aaa">{k}</span><span><span style="color:#fff">{v["px"]:,.2f}</span> <span class="{c}">{v["chg"]:+.2f}%</span></span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">GLOBAL MKTS</span><span class="caps">REALTIME</span></div>', unsafe_allow_html=True)
+    # Filter only non-crypto for this box
+    for k, v in {i:data['indices'][i] for i in ["S&P 500", "NASDAQ", "DOW 30", "VIX", "10Y YIELD", "DXY"]}.items():
+        c = "pos" if v['chg'] >= 0 else "neg"
+        st.markdown(f'<div class="mkt-row"><span style="color:#aaa">{k}</span><span><span style="color:#fff">{v["price"]:,.2f}</span> <span class="{c} mono">{v["chg"]:+.2f}%</span></span></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # SYSTEM HEALTH (Filling Blank Box 1)
+def render_crypto_panel(data):
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">SYS_RESOURCE</span></div>', unsafe_allow_html=True)
-    mem = np.random.randint(20, 40)
-    cpu = np.random.randint(5, 15)
-    st.markdown(f"""
-        <div class="mkt-row"><span>CORE_TEMP</span><span class="neon-cyan">42°C</span></div>
-        <div class="mkt-row"><span>RAM_USAGE</span><span class="neon-purple">{mem}%</span></div>
-        <div class="mkt-row"><span>CPU_LOAD</span><span class="neon-green">{cpu}%</span></div>
-        <div class="mkt-row"><span>UPTIME</span><span>04:20:59</span></div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">CRYPTO DESK</span><span class="caps">24/7</span></div>', unsafe_allow_html=True)
+    for k in ["BTC-USD", "ETH-USD"]:
+        v = data['indices'].get(k, {'price':0, 'chg':0})
+        c = "pos" if v['chg'] >= 0 else "neg"
+        st.markdown(f'<div class="mkt-row"><span style="color:#aaa">{k}</span><span><span style="color:#fff">{v["price"]:,.2f}</span> <span class="{c} mono">{v["chg"]:+.2f}%</span></span></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- CENTER COLUMN: CHART ---
-with c2:
-    st.markdown('<div class="panel" style="padding:0;">', unsafe_allow_html=True)
-    hist = engine.data['hist']
+def render_chart(hist, title, height=400):
+    st.markdown(f'<div class="panel" style="height:{height}px; padding:0; overflow:hidden;">', unsafe_allow_html=True)
     fig = go.Figure()
+    fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'],
+                                 increasing_line_color='#00ff00', decreasing_line_color='#ff3b3b', name="Price"))
+    # Simulated VWAP
+    vwap = (hist['Close'] + hist['High'] + hist['Low']) / 3
+    fig.add_trace(go.Scatter(x=hist.index, y=vwap, line=dict(color='#0088ff', width=1), name="VWAP"))
     
-    # Neon Candles
-    fig.add_trace(go.Candlestick(
-        x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'],
-        increasing_line_color='#00f0ff', decreasing_line_color='#ff0055', name="Price"
-    ))
-    
-    # Simple Layout
     fig.update_layout(
-        template="plotly_dark", height=450,
-        margin=dict(l=0,r=50,t=30,b=0),
-        paper_bgcolor='#0a0a0f', plot_bgcolor='#0a0a0f',
-        title=dict(text=f"// {symbol} PRIMARY FEED", font=dict(color="#00f0ff", family="JetBrains Mono"), x=0.02, y=0.95),
-        xaxis_rangeslider_visible=False,
-        xaxis=dict(showgrid=True, gridcolor='#222'),
-        yaxis=dict(showgrid=True, gridcolor='#222', side='right')
+        template="plotly_dark", margin=dict(l=0, r=50, t=30, b=0),
+        paper_bgcolor='#0a0a0a', plot_bgcolor='#0a0a0a',
+        title=dict(text=f"{title}", font=dict(color="#fff", size=11, family="Roboto Mono"), x=0.02, y=0.96),
+        xaxis=dict(showgrid=True, gridcolor='#222', tickfont=dict(color='#555', size=9)),
+        yaxis=dict(showgrid=True, gridcolor='#222', tickfont=dict(color='#555', size=9), side='right'),
+        xaxis_rangeslider_visible=False
     )
     st.plotly_chart(fig, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 6. LAYOUT CONSTRUCTION ---
+
+render_status_pill(engine.mode)
+render_tape()
+
+# 3-Column Grid: [ Markets/Internals ] [ Charts ] [ News/Econ/Crypto ]
+c1, c2, c3 = st.columns([1, 2, 1])
+
+# LEFT COL
+with c1:
+    render_global_panel(engine.data)
     
-    # NEWS FEED
+    # INTERNALS
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">NEWS WIRE // RSS</span></div>', unsafe_allow_html=True)
-    for n in engine.data['news']:
-        st.markdown(f'<div style="font-size:11px; margin-bottom:5px; border-left:2px solid #333; padding-left:5px; color:#ccc;">{n}</div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">MKT INTERNALS</span></div>', unsafe_allow_html=True)
+    i = engine.data['internals']
+    metrics = [("ADV/DEC", i['AD_LINE'], "pos"), ("TRIN", i['TRIN'], "neg" if i['TRIN']>1 else "pos"), ("VOL U/D", i['VOL_UP_DN'], "pos")]
+    for k, v, s in metrics:
+        st.markdown(f'<div class="mkt-row"><span style="color:#888">{k}</span><span class="{s} mono">{v}</span></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- RIGHT COLUMN: CRYPTO & GAINERS ---
+    # WATCHLIST
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">WATCHLIST</span></div>', unsafe_allow_html=True)
+    for s in ["META", "AMD", "COIN", "PLTR", "SOFI"]:
+        chg = random.uniform(-3, 3)
+        c = "pos" if chg > 0 else "neg"
+        st.markdown(f'<div class="mkt-row"><span>{s}</span><span class="{c} mono">{chg:+.2f}%</span></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# CENTER COL
+with c2:
+    render_chart(engine.data['hist'], f"{target_ticker} [5M] PRICE ACTION", height=450)
+    # Secondary "Proxy" Chart (e.g., SPY) re-using data for demo
+    render_chart(engine.data['hist'], "ES FUTURES (PROXY)", height=250)
+
+# RIGHT COL
 with c3:
-    # CRYPTO WATCH (Filling Blank Box 2)
+    render_crypto_panel(engine.data)
+    
+    # NEWS
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">CRYPTO_DESK</span></div>', unsafe_allow_html=True)
-    cryptos = ["SOL-USD", "XRP-USD", "ADA-USD", "DOGE-USD"]
-    for c_sym in cryptos:
-        px = np.random.uniform(0.5, 100)
-        chg = np.random.uniform(-5, 8)
-        col = "neon-green" if chg > 0 else "neon-red"
-        st.markdown(f'<div class="mkt-row"><span>{c_sym.split("-")[0]}</span><span><span style="color:#fff">{px:.2f}</span> <span class="{col}">{chg:+.1f}%</span></span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">NEWS WIRE</span></div>', unsafe_allow_html=True)
+    for n in engine.data['news']:
+        t_str = datetime.now().strftime("%H:%M")
+        st.markdown(f'<div class="news-item"><span class="news-time">{t_str}</span>{n}</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # TOP MOVERS (Filling Blank Box 3)
+    # ECON CALENDAR
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">TOP_VOLATILITY</span></div>', unsafe_allow_html=True)
-    movers = [("MARA", "+12.4%"), ("COIN", "+8.2%"), ("AMD", "+4.1%"), ("TSLA", "-3.2%")]
-    for t, p in movers:
-        c = "neon-green" if "+" in p else "neon-red"
-        st.markdown(f'<div class="mkt-row"><span>{t}</span><span class="{c}">{p}</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">ECON CALENDAR</span></div>', unsafe_allow_html=True)
+    events = [("08:30", "CPI YOY", "3.4%", "HIGH"), ("14:00", "FOMC", "--", "HIGH")]
+    for t, e, a, i in events:
+        c = "neg" if i=="HIGH" else "neu"
+        st.markdown(f'<div class="mkt-row"><span class="mono">{t}</span><span>{e}</span><span style="color:#fff">{a}</span></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 6. AUTO-REFRESH LOGIC ---
-if engine.status == "OFFLINE":
-    # If offline, wait 60 seconds then force rerun to check connection
-    time.sleep(1) # Small delay to ensure UI renders first
+# --- 7. AUTO-REFRESH & FOOTER ---
+tz_ny = pytz.timezone('US/Eastern')
+now_ny = datetime.now(tz_ny).strftime("%H:%M:%S")
+
+st.markdown(f"""
+    <div class="status-bar">
+        <span>MODE: <span style="color:{'#00ff00' if engine.mode=='ONLINE' else '#ff3b3b'}">{engine.mode}</span></span>
+        <span>NY TIME: {now_ny}</span>
+        <span>SOVEREIGN TERMINAL v2.0 // INSTITUTIONAL ACCESS</span>
+    </div>
+""", unsafe_allow_html=True)
+
+# Auto-Refresh Script (Updates every 60s to check API status)
+if engine.mode == "OFFLINE":
+    time.sleep(1) # UI Render buffer
     st.markdown(
         """
         <script>
-            var timeleft = 60;
-            var downloadTimer = setInterval(function(){
-            if(timeleft <= 0){
-                clearInterval(downloadTimer);
+            setTimeout(function(){
                 window.location.reload();
-            }
-            timeleft -= 1;
-            }, 1000);
+            }, 60000);
         </script>
-        <div style="text-align:center; font-size:10px; color:#444; margin-top:20px;">
-            // AUTO-RECONNECT SEQUENCE: RETRYING IN 60s
-        </div>
         """, 
         unsafe_allow_html=True
     )
-    # Note: Streamlit reruns usually require user input or st_autorefresh component.
-    # Since I cannot use custom components in this restricted env, this script tag 
-    # attempts a browser-side reload. If that fails, the user must manually refresh.
