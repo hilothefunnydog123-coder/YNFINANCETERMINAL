@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
 
-# --- 1. HUD ARCHITECTURE (STARK THEME) ---
+# --- 1. HUD ARCHITECTURE ---
 st.set_page_config(layout="wide", page_title="SOVEREIGN_HUD", initial_sidebar_state="collapsed")
 
 def apply_stark_ui(main_color="#00ffff"):
@@ -66,7 +66,7 @@ def apply_stark_ui(main_color="#00ffff"):
 # --- 2. DATA COMMAND & LIVE TICKER CACHE ---
 ticker_input = st.sidebar.text_input("CMD_INPUT", "NVDA").upper()
 stock = yf.Ticker(ticker_input)
-info = stock.info # Instant dictionary fetch
+info = stock.info 
 hist = stock.history(period="1d", interval="1m")
 
 # Generate Dynamic Color
@@ -75,14 +75,19 @@ dynamic_color = "#00ff00" if change >= 0 else "#ff0000"
 apply_stark_ui(main_color=dynamic_color)
 
 # --- 3. LIVE MULTI-TICKER DATA ---
-# Fetching actual prices for the top 10 tickers to replace static values
 top_tickers = ["AAPL", "NVDA", "TSLA", "MSFT", "GOOGL", "AMZN", "META", "AMD", "NFLX", "COIN"]
-ticker_data = yf.download(top_tickers, period="1d")['Close'].iloc[-1].to_dict()
+try:
+    # Safe fetch for ticker prices
+    data_download = yf.download(top_tickers, period="1d", progress=False)['Close'].iloc[-1]
+    ticker_data = data_download.to_dict()
+except:
+    # Fallback if download fails
+    ticker_data = {t: 0.00 for t in top_tickers}
 
 ticker_html = '<div class="ticker-wrap"><div class="ticker-content">'
 for t, price in ticker_data.items():
     ticker_html += f'<div class="stock-box"><span class="val">{t}</span> <span style="margin-left:10px;">${price:.2f}</span></div>'
-ticker_html += ticker_html + '</div></div>' # Loop for infinite scroll
+ticker_html += ticker_html + '</div></div>' 
 st.markdown(ticker_html, unsafe_allow_html=True)
 
 # --- 4. STICKY HUD ---
@@ -92,26 +97,27 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# --- 5. HOLOGRAPHIC NEURAL GLOBE ---
+# --- 5. HOLOGRAPHIC NEURAL GLOBE (FIXED) ---
 st.markdown('<div class="stark-frame"><span class="val">// NEURAL_NODE_SURVEILLANCE</span>', unsafe_allow_html=True)
 
-# Create glowing connection arcs
+# Glowing connection arcs
 globe_data = [
-    dict(type='scattergeo', lat=[40, 35], lon=[-74, 139], mode='lines', line=dict(width=3, color=dynamic_color)),
-    dict(type='scattergeo', lat=[51, 1], lon=[-0, 103], mode='lines', line=dict(width=3, color=dynamic_color)),
+    dict(type='scattergeo', lat=[40, 35], lon=[-74, 139], mode='lines', line=dict(width=2, color=dynamic_color)),
+    dict(type='scattergeo', lat=[51, 1], lon=[-0, 103], mode='lines', line=dict(width=2, color=dynamic_color)),
     dict(type='scattergeo', lat=[40, 51], lon=[-74, -0], mode='lines', line=dict(width=1, color="white", dash="dash"))
 ]
 
 map_fig = go.Figure(data=globe_data)
+# FIXED: Removed invalid 'framecolor' and simplified args
 map_fig.update_geos(
     projection_type="orthographic",
-    showcoastlines=True, coastlinecolor=f"{dynamic_color}", # Wired coastline
-    showland=True, landcolor="#050505", # Dark holographic mass
-    showocean=True, oceancolor="#000",
-    showcountries=True, countrycolor=f"{dynamic_color}44",
+    showcoastlines=True, coastlinecolor=dynamic_color,
+    showland=True, landcolor="#050505",
+    showocean=True, oceancolor="#000000",
+    showcountries=True, countrycolor="#333333",
     bgcolor="black",
-    framecolor=dynamic_color,
-    lataxis_showgrid=True, lonaxis_showgrid=True, gridcolor="#111"
+    lataxis=dict(showgrid=True, gridcolor="#111"),
+    lonaxis=dict(showgrid=True, gridcolor="#111")
 )
 map_fig.update_layout(height=450, margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor="black")
 st.plotly_chart(map_fig, use_container_width=True)
@@ -132,5 +138,5 @@ st.markdown('<div class="stark-frame"><span class="val">// RAW_TELEMETRY_DUMP_v.
 st.markdown('<div class="telemetry-grid">', unsafe_allow_html=True)
 for key, value in info.items():
     if value and len(str(value)) < 45:
-        st.markdown(f'<div class="telemetry-tile"><div style="color:#333; font-size:9px;">{str(key).upper()}</div><div class="val">{str(value)}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="telemetry-tile"><div style="color:#555; font-size:9px;">{str(key).upper()}</div><div class="val">{str(value)}</div></div>', unsafe_allow_html=True)
 st.markdown('</div></div>', unsafe_allow_html=True)
