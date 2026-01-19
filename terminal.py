@@ -9,6 +9,21 @@ import random
 import time
 import streamlit.components.v1 as components
 
+components.html(
+    """
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin:0;padding:0;background:black;">
+        <script src="https://pl28518975.effectivegatecpm.com/4b/b8/00/4bb80075f97ec2e7da97c462a677bc5c.js"></script>
+      </body>
+    </html>
+    """,
+    height=300,
+)
+
+
 # --- 1. SYSTEM CONFIGURATION ---
 st.set_page_config(layout="wide", page_title="SOVEREIGN_PRIME_VC", initial_sidebar_state="expanded")
 
