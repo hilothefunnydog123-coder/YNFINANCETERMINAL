@@ -28,7 +28,7 @@ components.html(
       </body>
     </html>
     """,
-    height=100,
+    height=200,
 )
 
 
