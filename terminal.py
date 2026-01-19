@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 from datetime import datetime
 import pytz
 import requests
-import json
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(layout="wide", page_title="SOVEREIGN_SHADOW", initial_sidebar_state="collapsed")
@@ -49,7 +48,7 @@ def inject_css():
         .regime-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px; }
         .regime-val { font-family: 'Roboto Mono'; font-weight: 900; font-size: 14px; color: #eee; }
         
-        /* SHADOW FEED (Twitter Style) */
+        /* SHADOW FEED */
         .tweet-box {
             background: #000; border: 1px solid #222; padding: 10px; margin-bottom: 8px;
             font-family: 'Inter', sans-serif;
@@ -70,7 +69,6 @@ def inject_css():
             display: flex; align-items: flex-start; gap: 8px;
         }
         
-        /* SCROLLBARS */
         ::-webkit-scrollbar { width: 5px; background: #000; }
         ::-webkit-scrollbar-thumb { background: #333; }
         </style>
@@ -81,7 +79,6 @@ inject_css()
 # --- 3. SHADOW TWITTER ENGINE ---
 class ShadowTwitterEngine:
     def __init__(self):
-        # COOKIES INJECTED FROM USER DATA
         self.cookies = {
             "auth_token": "c4f7ca8eaa22c5bb7e3ed40fa1eb7816287e859f",
             "ct0": "616455d5e652aee8ea37a923de7af8f7186d1271610b20fdee00aa19fb90570d6a91c1e527f3f0146b23675dedc0b7dbbb40739ff4ce455cbc195e9f0b1085a5cef47a13b32f072f3fc9d582838c4a52",
@@ -93,15 +90,9 @@ class ShadowTwitterEngine:
         }
 
     def fetch_shadow_feed(self, query="$NVDA"):
-        # Real request logic. 
-        # NOTE: If X.com blocks the server IP or cookies expire, this fails safely to Yahoo fallback.
-        try:
-            # Using a public-ish endpoint for demonstration of logic
-            # In a real local env, this would hit the SearchTimeline GraphQL endpoint
-            # Since we are in a cloud env, we simulate the 'attempt' and fallback if blocked
-            raise Exception("Shadow Uplink Restricted") 
-        except:
-            return None # Triggers fallback
+        # In this environment, direct cookie requests might be IP blocked.
+        # We simulate the failure to trigger the ROBUST fallback immediately.
+        return None 
 
 # --- 4. MAIN DATA ENGINE (Real Data) ---
 class SituationEngine:
@@ -117,9 +108,15 @@ class SituationEngine:
             data = yf.download(tickers, period="1mo", interval="1d", progress=False)['Close']
             
             # 2. FETCH INTRADAY FOR CHARTS
+            # Fallback logic for market hours
             intra = yf.download("NVDA", period="1d", interval="5m", progress=False)
-            if intra.empty: # Fallback if market closed
+            if intra.empty: 
                  intra = yf.download("NVDA", period="5d", interval="1h", progress=False)
+            
+            # Flatten columns if multi-index (Fixes empty charts)
+            if isinstance(intra.columns, pd.MultiIndex):
+                intra.columns = intra.columns.get_level_values(0)
+                
             self.data['chart'] = intra
 
             # 3. REGIME CALCULATIONS
@@ -138,21 +135,33 @@ class SituationEngine:
             }
             
             # 4. FETCH NEWS (Shadow Fallback)
+            # Try Shadow Engine -> Fail -> Yahoo Live Wire
             shadow_data = self.shadow.fetch_shadow_feed()
+            
             if shadow_data:
                 self.data['feed'] = shadow_data
                 self.data['feed_source'] = "SHADOW UPLINK (X)"
             else:
-                # Yahoo Finance "Live Wire" Fallback
-                yf_news = yf.Ticker("SPY").news
-                self.data['feed'] = []
-                for n in yf_news[:6]:
-                    self.data['feed'].append({
-                        "handle": "@MarketWire",
-                        "text": n['title'],
-                        "time": n.get('providerPublishTime', 0)
-                    })
-                self.data['feed_source'] = "CLEARNET (BACKUP)"
+                # SAFE YAHOO FALLBACK
+                # We use a try/except block specifically for the news parsing loop
+                try:
+                    yf_news = yf.Ticker("SPY").news
+                    self.data['feed'] = []
+                    for n in yf_news[:6]:
+                        # --- CRITICAL FIX FOR KEYERROR 'TITLE' ---
+                        title = n.get('title', 'MARKET ALERT')
+                        timestamp = n.get('providerPublishTime', 0)
+                        
+                        self.data['feed'].append({
+                            "handle": "@MarketWire",
+                            "text": title,
+                            "time": timestamp
+                        })
+                    self.data['feed_source'] = "CLEARNET (BACKUP)"
+                except Exception as e:
+                    # Absolute worst case fallback
+                    self.data['feed'] = [{"handle": "@System", "text": "FEED UNAVAILABLE", "time": 0}]
+                    self.data['feed_source'] = "OFFLINE"
 
             # 5. DELTAS
             self.data['deltas'] = []
@@ -216,9 +225,6 @@ def render_chart(df):
     st.markdown('<div class="panel-header"><span class="panel-title">PRICE ACTION</span><span class="panel-title">NVDA [REAL]</span></div>', unsafe_allow_html=True)
     
     if not df.empty:
-        # Handle MultiIndex if present
-        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-        
         fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'],
                                              increasing_line_color='#00ff41', decreasing_line_color='#ff3b3b')])
         fig.update_layout(
@@ -286,4 +292,5 @@ else:
 
 # Footer
 now = datetime.now(pytz.timezone('US/Eastern')).strftime("%H:%M:%S")
+color = "#00ff41" if engine.mode == "LIVE UPLINK" else "#ff3b3b"
 st.markdown(f'<div style="position:fixed; bottom:0; left:0; width:100%; background:#000; border-top:1px solid #333; padding:2px 15px; font-family:monospace; font-size:9px; color:#555;">STATUS: {engine.mode} | SHADOW UPLINK: ENABLED | {now} ET</div>', unsafe_allow_html=True)
