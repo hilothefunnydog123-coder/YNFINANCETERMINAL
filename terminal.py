@@ -96,33 +96,57 @@ class SituationEngine:
     def run_scan(self):
         try:
             # 1. FETCH MACRO & SECTOR DATA
-            # ^GSPC=SPX, ^VIX=Vol, ^TNX=10Y, DX-Y.NYB=USD
-            # XLK=Tech, XLF=Financials, XLE=Energy (For Heatmap)
-            # NVDA, MSFT, TSLA (For Conviction/Trend)
             tickers = ["^GSPC", "^VIX", "^TNX", "DX-Y.NYB", "BTC-USD", "NVDA", "MSFT", "TSLA", "XLK", "XLF", "XLE"]
             
-            # Download 20 days to calculate MA20 for trends
-            data = yf.download(tickers, period="25d", interval="1d", progress=False)['Close']
+            # Fetch data - auto_adjust helps with some data anomalies
+            df = yf.download(tickers, period="1mo", interval="1d", progress=False, auto_adjust=True)
             
-            if data.empty:
+            # --- CRITICAL FIX FOR MULTI-INDEX HEADERS ---
+            # yfinance returns (Price, Ticker) format. We want just the Close price.
+            if isinstance(df.columns, pd.MultiIndex):
+                # Check if 'Close' is a level, if so, select it
+                if 'Close' in df.columns.get_level_values(0):
+                    df = df['Close']
+                # Sometimes it might just return tickers as columns if only one metric is fetched, 
+                # but we asked for everything. Safest to try accessing 'Close'.
+            
+            # --- CRITICAL FIX FOR NAN VALUES ---
+            # Fill missing weekend/holiday data with the previous valid day's data
+            df = df.ffill()
+            
+            if df.empty:
                 raise Exception("NO DATA RECEIVED")
 
-            self.data['prices'] = data
+            self.data['prices'] = df
             
-            # 2. FETCH REAL NEWS (Using SPY for broad market coverage)
+            # 2. FETCH REAL NEWS
             try:
+                # Use SPY for broad market news, it usually has the most "Twitter-like" headlines
                 news_source = yf.Ticker("SPY")
                 self.data['news'] = news_source.news
             except:
                 self.data['news'] = []
             
-            # 3. CALCULATE REGIME METRICS
-            # Latest vs Previous Close
-            vix = data['^VIX'].iloc[-1]
-            prev_vix = data['^VIX'].iloc[-2]
-            us10y = data['^TNX'].iloc[-1]
-            spx_chg = ((data['^GSPC'].iloc[-1] - data['^GSPC'].iloc[-2]) / data['^GSPC'].iloc[-2]) * 100
-            dxy = data['DX-Y.NYB'].iloc[-1]
+            # 3. CALCULATE REGIME METRICS (With Safe Access)
+            def get_safe(ticker):
+                if ticker in df.columns:
+                    return df[ticker].iloc[-1]
+                return 0.0
+
+            def get_safe_prev(ticker):
+                if ticker in df.columns and len(df) > 1:
+                    return df[ticker].iloc[-2]
+                return 0.0
+
+            vix = get_safe('^VIX')
+            prev_vix = get_safe_prev('^VIX')
+            us10y = get_safe('^TNX')
+            dxy = get_safe('DX-Y.NYB')
+            
+            # Calc SPX Change
+            spx_curr = get_safe('^GSPC')
+            spx_prev = get_safe_prev('^GSPC')
+            spx_chg = ((spx_curr - spx_prev) / spx_prev) * 100 if spx_prev > 0 else 0
             
             # Logic
             risk_state = "RISK-ON" if vix < 20 else "RISK-OFF"
@@ -134,8 +158,11 @@ class SituationEngine:
             
             vol_trend = "RISING" if vix > prev_vix else "FALLING"
             
-            # Correlation check: SPX vs DXY (Fractured if both up)
-            dxy_chg = dxy - data['DX-Y.NYB'].iloc[-2]
+            # Correlation check
+            dxy_curr = get_safe('DX-Y.NYB')
+            dxy_prev = get_safe_prev('DX-Y.NYB')
+            dxy_chg = dxy_curr - dxy_prev
+            
             alignment = "FRACTURED" if spx_chg > 0 and dxy_chg > 0 else "ALIGNED"
             
             self.data['regime'] = {
@@ -146,45 +173,42 @@ class SituationEngine:
                 "ALIGNMENT": alignment
             }
             
-            # 4. DELTA DETECTION (Significant Moves)
+            # 4. DELTA DETECTION
             self.data['deltas'] = []
             
             # 10Y Delta
-            y_move_bps = (us10y - data['^TNX'].iloc[-2]) * 10
-            if abs(y_move_bps) > 5:
-                impact = "EQUITY STRESS" if y_move_bps > 0 else "RELIEF BID"
-                self.data['deltas'].append({
-                    "icon": "⚠️", "desc": f"US10Y {y_move_bps:+.1f}bps", "impact": impact
-                })
+            if '^TNX' in df.columns:
+                y_move_bps = (us10y - get_safe_prev('^TNX')) * 10
+                if abs(y_move_bps) > 3:
+                    impact = "EQUITY STRESS" if y_move_bps > 0 else "RELIEF BID"
+                    self.data['deltas'].append({
+                        "icon": "⚠️", "desc": f"US10Y {y_move_bps:+.1f}bps", "impact": impact
+                    })
             
-            # BTC Delta
-            btc_move = ((data['BTC-USD'].iloc[-1] - data['BTC-USD'].iloc[-2]) / data['BTC-USD'].iloc[-2]) * 100
-            if abs(btc_move) > 3:
-                self.data['deltas'].append({
-                    "icon": "🪙", "desc": f"BTC {btc_move:+.1f}%", "impact": "RISK APPETITE"
-                })
-                
             # NVDA Delta
-            nvda_move = ((data['NVDA'].iloc[-1] - data['NVDA'].iloc[-2]) / data['NVDA'].iloc[-2]) * 100
-            self.data['deltas'].append({
-                "icon": "🔥" if nvda_move > 0 else "❄️", 
-                "desc": f"NVDA {nvda_move:+.2f}%", 
-                "impact": "AI BETA"
-            })
+            if 'NVDA' in df.columns:
+                nvda_curr = df['NVDA'].iloc[-1]
+                nvda_prev = df['NVDA'].iloc[-2]
+                nvda_move = ((nvda_curr - nvda_prev) / nvda_prev) * 100
+                self.data['deltas'].append({
+                    "icon": "🔥" if nvda_move > 0 else "❄️", 
+                    "desc": f"NVDA {nvda_move:+.2f}%", 
+                    "impact": "AI BETA"
+                })
             
             # 5. RISK MONITOR (Real Correlations)
             # Tech vs Rates Correlation (5-day rolling)
-            # Standardize length to avoid mismatch
-            tech = data['NVDA'].tail(5)
-            rates = data['^TNX'].tail(5)
-            corr = tech.corr(rates)
-            
             self.data['risks'] = []
-            if abs(corr) > 0.7:
-                self.data['risks'].append({
-                    "type": "CORRELATION SPIKE",
-                    "desc": f"NVDA/10Y CORR: {corr:.2f} (HEDGE RISK)"
-                })
+            if 'NVDA' in df.columns and '^TNX' in df.columns:
+                tech = df['NVDA'].tail(10)
+                rates = df['^TNX'].tail(10)
+                corr = tech.corr(rates)
+                
+                if abs(corr) > 0.6:
+                    self.data['risks'].append({
+                        "type": "CORRELATION SPIKE",
+                        "desc": f"NVDA/10Y CORR: {corr:.2f} (HEDGE RISK)"
+                    })
             
             if vix > 20:
                 self.data['risks'].append({
@@ -232,10 +256,10 @@ def render_twitter_feed(news):
 
     handles = ["@BreakingMkt", "@ZeroHedge", "@WalterBloom", "@DeltaOne", "@CNBCFastMoney"]
     
-    for i, n in enumerate(news[:5]):
+    for i, n in enumerate(news[:6]):
         handle = handles[i % len(handles)]
         
-        # KEYERROR FIX: Check for key existence
+        # KEYERROR FIX: Check for key existence and handle missing timestamps
         pub_ts = n.get('providerPublishTime', None)
         if pub_ts:
             try:
@@ -269,7 +293,7 @@ def render_delta_panel(deltas):
     st.markdown('<div class="panel-header"><span class="panel-title">REGIME SHIFTS (24H)</span></div>', unsafe_allow_html=True)
     
     if not deltas:
-        st.markdown("<div style='color:#555;'>NO SIGNIFICANT SHIFTS</div>", unsafe_allow_html=True)
+        st.markdown("<div style='color:#555; font-size:11px;'>NO SIGNIFICANT SHIFTS</div>", unsafe_allow_html=True)
     else:
         for d in deltas:
             st.markdown(f"""
@@ -285,19 +309,25 @@ def render_delta_panel(deltas):
 
 def render_risk_monitor(risks):
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    alert_count = len([r for r in risks if r['type'] != "SYSTEM NORMAL"])
-    header_cls = "neg" if alert_count > 0 else "pos"
+    if risks:
+        alert_count = len([r for r in risks if r['type'] != "SYSTEM NORMAL"])
+        header_cls = "neg" if alert_count > 0 else "pos"
+    else:
+        alert_count = 0
+        header_cls = "pos"
+        
     st.markdown(f'<div class="panel-header"><span class="panel-title">RISK MONITOR</span><span class="panel-title {header_cls}">ALERTS: {alert_count}</span></div>', unsafe_allow_html=True)
     
-    for r in risks:
-        icon = "✅" if r['type'] == "SYSTEM NORMAL" else "⚡"
-        color = "#aaa" if r['type'] == "SYSTEM NORMAL" else "#ffaaaa"
-        st.markdown(f"""
-            <div class="risk-alert">
-                <div class="risk-icon">{icon}</div>
-                <div class="risk-text" style="color:{color};"><b>{r['type']}</b><br>{r['desc']}</div>
-            </div>
-        """, unsafe_allow_html=True)
+    if risks:
+        for r in risks:
+            icon = "✅" if r['type'] == "SYSTEM NORMAL" else "⚡"
+            color = "#aaa" if r['type'] == "SYSTEM NORMAL" else "#ffaaaa"
+            st.markdown(f"""
+                <div class="risk-alert">
+                    <div class="risk-icon">{icon}</div>
+                    <div class="risk-text" style="color:{color};"><b>{r['type']}</b><br>{r['desc']}</div>
+                </div>
+            """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_conviction_map(prices):
@@ -309,11 +339,10 @@ def render_conviction_map(prices):
     
     for t in targets:
         if t in prices.columns:
+            # Safe access for Series
             series = prices[t]
             curr = series.iloc[-1]
-            sma20 = series.mean() # rolling mean handled in fetch, here we can simplified use mean of period if fetched small, else use proper calc
-            # Better: re-calculate simple mean of the 25d window
-            sma20 = series.mean()
+            sma20 = series.mean() # Simple mean of fetched period as proxy
             
             status = "BULLISH" if curr > sma20 else "BEARISH"
             color = "#00ff41" if curr > sma20 else "#ff3b3b"
@@ -338,7 +367,11 @@ def render_sector_heat(prices):
     
     for sym, name in sectors.items():
         if sym in prices.columns:
-            chg = ((prices[sym].iloc[-1] - prices[sym].iloc[-2]) / prices[sym].iloc[-2]) * 100
+            # Safe calcs
+            curr = prices[sym].iloc[-1]
+            prev = prices[sym].iloc[-2]
+            chg = ((curr - prev) / prev) * 100
+            
             c = "pos" if chg > 0 else "neg"
             st.markdown(f"""
                 <div class="delta-row">
