@@ -9,19 +9,28 @@ import random
 import time
 import streamlit.components.v1 as components
 
+
 components.html(
     """
     <html>
       <head>
+        <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
       </head>
-      <body style="margin:0;padding:0;background:black;">
-        <script src="https://pl28518975.effectivegatecpm.com/4b/b8/00/4bb80075f97ec2e7da97c462a677bc5c.js"></script>
+      <body style="margin:0;padding:0;background:#0b0b0b;">
+        
+        <script async="async" data-cfasync="false"
+          src="https://pl28519010.effectivegatecpm.com/7f2ad764010d514cdee2fdac0b042524/invoke.js">
+        </script>
+
+        <div id="container-7f2ad764010d514cdee2fdac0b042524"></div>
+
       </body>
     </html>
     """,
-    height=300,
+    height=250,
 )
+
 
 
 # --- 1. SYSTEM CONFIGURATION ---
