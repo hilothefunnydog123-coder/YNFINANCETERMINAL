@@ -5,331 +5,345 @@ import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import pytz
-import json
-import os
+import time
 
 # --- 1. CONFIGURATION ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_SHADOW", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="STREET_INTEL_LIVE", initial_sidebar_state="collapsed")
 
-# --- 2. CSS ENGINE (The "Old Self" Look) ---
-def inject_shadow_css():
+# --- 2. CSS ENGINE ---
+def inject_dossier_css():
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
         
-        .stApp { background-color: #000000; color: #c0c0c0; font-family: 'Inter', sans-serif; }
-        .block-container { padding: 1rem 1rem; max-width: 100%; }
+        .stApp { background-color: #050505; color: #d0d0d0; font-family: 'Inter', sans-serif; }
+        * { border-radius: 0px !important; }
+        .block-container { padding: 1rem 1.5rem; max-width: 100%; }
         [data-testid="stHeader"] { display: none; }
         
-        /* COLORS */
         .pos { color: #00ff41 !important; }
         .neg { color: #ff3b3b !important; }
         .warn { color: #ffcc00 !important; }
-        .accent { color: #00f0ff !important; }
+        .amber { color: #ffae00 !important; text-shadow: 0 0 8px rgba(255, 174, 0, 0.25); }
+        .muted { color: #555 !important; }
         .mono { font-family: 'Roboto Mono', monospace; }
         
-        /* REGIME STRIP */
-        .regime-strip {
-            display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px;
-            background: #0a0a0a; border: 1px solid #333; margin-bottom: 20px;
-        }
-        .regime-cell { padding: 10px; text-align: center; border-right: 1px solid #222; }
-        .regime-cell:last-child { border-right: none; }
-        .regime-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px; }
-        .regime-val { font-family: 'Roboto Mono'; font-weight: 900; font-size: 14px; color: #eee; }
-        
-        /* PANELS */
+        .header-main { font-size: 20px; font-weight: 900; letter-spacing: 2px; color: #fff; text-transform: uppercase; }
+        .header-sub { font-size: 10px; color: #ffae00; font-family: 'Roboto Mono'; letter-spacing: 1px; }
+
         .panel {
-            background: #080808; border: 1px solid #222; padding: 15px; height: 100%;
-            display: flex; flex-direction: column; min-height: 250px;
+            background: #0b0b0b; border: 1px solid #222; margin-bottom: 12px; padding: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); position: relative; min-height: 150px;
         }
         .panel-header {
+            border-bottom: 1px solid #333; padding-bottom: 6px; margin-bottom: 10px;
             display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px;
         }
-        .panel-title { font-size: 12px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
+        .panel-title { font-size: 11px; font-weight: 800; color: #ffae00; text-transform: uppercase; letter-spacing: 1px; }
         
-        /* SHADOW FEED */
-        .tweet-box {
-            background: #000; border-left: 2px solid #333; padding: 10px; margin-bottom: 8px;
-            font-family: 'Inter', sans-serif;
+        .own-row {
+            display: grid; grid-template-columns: 3fr 1fr 1fr; 
+            font-family: 'Roboto Mono', monospace; font-size: 10px; 
+            padding: 5px 0; border-bottom: 1px dashed #1a1a1a; align-items: center;
         }
-        .tweet-header { display: flex; align-items: center; margin-bottom: 4px; }
-        .tweet-handle { font-size: 11px; font-weight: bold; color: #fff; margin-right: 6px; }
-        .tweet-verified { color: #1d9bf0; font-size: 10px; margin-right: 6px; }
-        .tweet-time { font-size: 10px; color: #555; }
-        .tweet-body { font-size: 11px; color: #ccc; line-height: 1.4; }
+        .own-header { font-weight: bold; color: #555; font-size: 9px; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px; }
         
-        /* RISK & DELTA */
-        .delta-row {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 0; border-bottom: 1px dashed #1a1a1a; font-size: 11px;
-        }
-        .risk-alert {
-            background: #1a0505; border: 1px solid #330000; padding: 8px; margin-bottom: 6px;
-            display: flex; align-items: flex-start; gap: 8px;
+        .cp-bar-bg { width: 100%; background: #1a1a1a; height: 4px; margin: 4px 0; }
+        .cp-bar-fill { height: 100%; }
+        
+        .narrative-text { font-size: 11px; color: #ccc; line-height: 1.5; border-left: 2px solid #ffae00; padding-left: 10px; margin-bottom: 10px; }
+        
+        .status-bar {
+            position: fixed; bottom: 0; left: 0; width: 100%; background: #000; border-top: 1px solid #ffae00;
+            padding: 3px 15px; display: flex; justify-content: space-between; font-family: 'Roboto Mono', monospace;
+            font-size: 9px; color: #ffae00; z-index: 999;
         }
         
         ::-webkit-scrollbar { width: 5px; background: #000; }
-        ::-webkit-scrollbar-thumb { background: #333; }
+        ::-webkit-scrollbar-thumb { background: #ffae00; }
         </style>
     """, unsafe_allow_html=True)
 
-inject_shadow_css()
+inject_dossier_css()
 
-# --- 3. SHADOW TWITTER ENGINE (Cookies.json) ---
-class ShadowTwitterEngine:
-    def __init__(self):
-        self.cookies = {}
-        self.headers = {}
-        self.load_cookies()
-
-    def load_cookies(self):
-        # 1. Try loading cookies.json from file
-        try:
-            if os.path.exists("cookies.json"):
-                with open("cookies.json", "r") as f:
-                    cookie_data = json.load(f)
-                    # Parse the array format you provided
-                    for c in cookie_data:
-                        self.cookies[c['name']] = c['value']
-            else:
-                # 2. Fallback to the provided defaults if file missing
-                self.cookies = {
-                    "auth_token": "c4f7ca8eaa22c5bb7e3ed40fa1eb7816287e859f",
-                    "ct0": "616455d5e652aee8ea37a923de7af8f7186d1271610b20fdee00aa19fb90570d6a91c1e527f3f0146b23675dedc0b7dbbb40739ff4ce455cbc195e9f0b1085a5cef47a13b32f072f3fc9d582838c4a52"
-                }
-            
-            # Construct Headers
-            csrf = self.cookies.get('ct0', '')
-            self.headers = {
-                "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-                "x-csrf-token": csrf,
-                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
-        except:
-            pass # Fail silently to fallback
-
-    def fetch_shadow_feed(self):
-        # If we can't make real requests (IP block/Captcha), return None to trigger safe fallback
-        # In a local environment, you would put the requests.get() logic here
-        return None 
-
-# --- 4. MAIN DATA ENGINE (Hardened) ---
-class SituationEngine:
-    def __init__(self):
-        self.mode = "INITIALIZING..."
+# --- 3. REAL DATA ENGINE (No Simulation) ---
+class RealIntelEngine:
+    def __init__(self, ticker):
+        self.ticker = ticker
+        self.mode = "CONNECTING..."
         self.data = {}
-        self.shadow = ShadowTwitterEngine()
         
-    def run_scan(self):
+    def fetch(self):
         try:
-            # 1. FETCH MACRO & TICKER DATA
-            # Added more tickers to ensure density
-            tickers = ["^GSPC", "^VIX", "^TNX", "DX-Y.NYB", "BTC-USD", "NVDA", "MSFT", "TSLA", "XLK", "XLF"]
+            t = yf.Ticker(self.ticker)
             
-            # Fetch data with auto_adjust to fix split/div issues
-            df = yf.download(tickers, period="2mo", interval="1d", progress=False, auto_adjust=True)
+            # 1. PRICE HISTORY (Real)
+            # Fetch 1 month to calculate trends, 5m for intraday if available
+            hist = t.history(period="1mo", interval="1d") # Daily for robust indicators
+            intra = t.history(period="1d", interval="5m") # Intraday for flow
             
-            # --- CRITICAL FIXES ---
-            # 1. Flatten MultiIndex columns (The root cause of "nan")
-            if isinstance(df.columns, pd.MultiIndex):
-                # If the columns are (Price, Ticker), we want to get the 'Close' level if it exists, or just flatten
-                try:
-                    df = df['Close']
-                except:
-                    # If 'Close' isn't top level, just drop level 0
-                    df.columns = df.columns.get_level_values(1)
+            if hist.empty: 
+                self.mode = "NO DATA FOUND"
+                return
 
-            # 2. Forward Fill (The "Nan" Killer)
-            # If VIX is missing for today, use yesterday's.
-            df = df.ffill().bfill()
+            self.data['hist'] = hist
+            self.data['intra'] = intra
             
-            if df.empty: raise Exception("NO DATA")
-            self.data['prices'] = df
+            # 2. FUNDAMENTAL DATA (Real)
+            self.data['info'] = t.info
+            self.data['holders'] = t.institutional_holders
+            self.data['major_holders'] = t.major_holders
             
-            # 3. REGIME CALCULATIONS (Safe Access)
-            def get_last(ticker):
-                return df[ticker].iloc[-1] if ticker in df.columns else 0.0
-                
-            vix = get_last('^VIX')
-            us10y = get_last('^TNX')
+            # 3. CALCULATE DERIVED METRICS (Real Math on Real Data)
+            self._calc_real_flow()
+            self._calc_real_regime()
+            self._calc_real_liquidity()
+            self._format_ownership()
             
-            risk = "RISK-ON" if vix < 20 else "RISK-OFF"
-            liq = "TIGHT" if us10y > 4.2 else "NEUTRAL"
-            
-            self.data['regime'] = {
-                "RISK": risk,
-                "VOL": f"{vix:.2f}",
-                "LIQ": liq,
-                "RATES": f"{us10y:.2f}%",
-                "ALIGN": "MIXED"
-            }
-            
-            # 4. FETCH NEWS (The Hybrid Feed)
-            # Try Shadow -> Fail -> Yahoo High Quality
-            shadow_data = self.shadow.fetch_shadow_feed()
-            
-            if shadow_data:
-                self.data['feed'] = shadow_data
-                self.data['feed_source'] = "SHADOW UPLINK (X)"
-            else:
-                # Yahoo Fallback
-                try:
-                    # Use a highly active ticker for better news flow
-                    yf_news = yf.Ticker("QQQ").news
-                    self.data['feed'] = []
-                    for n in yf_news[:6]:
-                        # Safe Title
-                        title = n.get('title', 'MARKET UPDATE')
-                        # Safe Time
-                        pub_ts = n.get('providerPublishTime', 0)
-                        
-                        self.data['feed'].append({
-                            "handle": "@MarketWire",
-                            "text": title,
-                            "time": pub_ts
-                        })
-                    self.data['feed_source'] = "CLEARNET (BACKUP)"
-                except:
-                    self.data['feed'] = [{"handle": "@System", "text": "FEED OFFLINE", "time": 0}]
-                    self.data['feed_source'] = "OFFLINE"
-
-            # 5. INTRADAY CHART DATA (NVDA)
-            try:
-                intra = yf.download("NVDA", period="5d", interval="15m", progress=False, auto_adjust=True)
-                if isinstance(intra.columns, pd.MultiIndex): intra.columns = intra.columns.get_level_values(0)
-                self.data['chart'] = intra
-            except:
-                self.data['chart'] = pd.DataFrame()
-
-            # 6. DELTAS
-            self.data['deltas'] = []
-            if '^TNX' in df.columns:
-                chg = (us10y - df['^TNX'].iloc[-2]) * 10
-                self.data['deltas'].append({"icon": "⚠️", "desc": f"US10Y {chg:+.1f}bps", "impact": "MACRO"})
-            if 'NVDA' in df.columns:
-                chg = ((df['NVDA'].iloc[-1] - df['NVDA'].iloc[-2]) / df['NVDA'].iloc[-2]) * 100
-                self.data['deltas'].append({"icon": "🔥", "desc": f"NVDA {chg:+.2f}%", "impact": "BETA"})
-
             self.mode = "LIVE UPLINK"
             
         except Exception as e:
-            self.mode = f"ERROR: {str(e)}"
+            self.mode = f"API ERROR: {str(e)}"
+            # NO FALLBACK TO SIMULATION
 
-# --- 5. RENDERERS ---
+    def _calc_real_flow(self):
+        # Calculate Buying vs Selling Pressure from REAL Volume
+        if self.data['intra'].empty:
+            self.data['flow'] = {"BUY": 0, "SELL": 0, "NET": "N/A"}
+            return
 
-def render_regime(r):
-    c_risk = "pos" if "ON" in r['RISK'] else "neg"
-    st.markdown(f"""
-        <div class="regime-strip">
-            <div class="regime-cell"><span class="regime-label">RISK REGIME</span><span class="regime-val {c_risk}">{r['RISK']}</span></div>
-            <div class="regime-cell"><span class="regime-label">LIQUIDITY</span><span class="regime-val">{r['LIQ']}</span></div>
-            <div class="regime-cell"><span class="regime-label">VOLATILITY</span><span class="regime-val">{r['VOL']}</span></div>
-            <div class="regime-cell"><span class="regime-label">RATES</span><span class="regime-val">{r['RATES']}</span></div>
-            <div class="regime-cell"><span class="regime-label">ALIGNMENT</span><span class="regime-val">{r['ALIGN']}</span></div>
-        </div>
-    """, unsafe_allow_html=True)
+        df = self.data['intra'].copy()
+        # If Close > Open, we treat volume as "Buying", else "Selling"
+        df['BuyVol'] = np.where(df['Close'] > df['Open'], df['Volume'], 0)
+        df['SellVol'] = np.where(df['Close'] < df['Open'], df['Volume'], 0)
+        
+        total_vol = df['Volume'].sum()
+        if total_vol == 0: total_vol = 1 # Avoid div/0
+        
+        buy_pct = (df['BuyVol'].sum() / total_vol) * 100
+        sell_pct = (df['SellVol'].sum() / total_vol) * 100
+        
+        self.data['flow'] = {
+            "BUY": buy_pct, 
+            "SELL": sell_pct, 
+            "NET": "ACCUM" if buy_pct > sell_pct else "DISTRIB"
+        }
 
-def render_shadow_feed(feed, source):
+    def _calc_real_regime(self):
+        # Calculate RSI and Trend from REAL Data
+        df = self.data['hist']
+        close = df['Close']
+        
+        # Simple RSI Calculation
+        delta = close.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs)).iloc[-1]
+        
+        # Trend
+        sma20 = close.rolling(window=20).mean().iloc[-1]
+        curr = close.iloc[-1]
+        
+        regime = "NEUTRAL"
+        if curr > sma20 and rsi > 50: regime = "BULLISH TREND"
+        elif curr < sma20 and rsi < 50: regime = "BEARISH TREND"
+        elif rsi > 70: regime = "OVERBOUGHT"
+        elif rsi < 30: regime = "OVERSOLD"
+        
+        self.data['regime_stats'] = {
+            "RSI": rsi,
+            "SMA20": sma20,
+            "STATE": regime
+        }
+
+    def _calc_real_liquidity(self):
+        # Use Shares Outstanding vs Float if available
+        shares = self.data['info'].get('sharesOutstanding', 1)
+        float_shares = self.data['info'].get('floatShares', 1)
+        
+        locked_pct = ((shares - float_shares) / shares) * 100
+        
+        self.data['liq'] = {
+            "LOCKED": round(max(locked_pct, 0), 1),
+            "FLOAT": round(100 - locked_pct, 1)
+        }
+
+    def _format_ownership(self):
+        # Process the REAL 13F Dataframe
+        if self.data['holders'] is not None and not self.data['holders'].empty:
+            # Rename columns to match our layout if needed, usually comes as [Holder, Shares, Date Reported, % Out, Value]
+            # We will take top 5
+            self.data['top_holders'] = self.data['holders'].head(5).to_dict('records')
+        else:
+            self.data['top_holders'] = []
+
+# --- 4. INITIALIZE ---
+with st.sidebar:
+    st.markdown("### // INTEL_DESK")
+    target = st.text_input("TICKER", "NVDA").upper()
+
+engine = RealIntelEngine(target)
+engine.fetch()
+
+# --- 5. RENDER FUNCTIONS ---
+
+def render_header():
+    c1, c2 = st.columns([3, 1])
+    with c1:
+        st.markdown(f'<div class="header-main">{target} // LIVE DOSSIER</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="header-sub">REAL-TIME DATA ONLY • NO SIMULATION</div>', unsafe_allow_html=True)
+    with c2:
+        regime = engine.data.get('regime_stats', {}).get('STATE', 'WAITING...')
+        color = "#00ff41" if "BULL" in regime else "#ff3b3b" if "BEAR" in regime else "#ffae00"
+        st.markdown(f'<div style="text-align:right; font-family:monospace; color:{color}; border:1px solid {color}; padding:5px;">REGIME: {regime}</div>', unsafe_allow_html=True)
+    st.markdown("---")
+
+def render_flow_panel():
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    color = "#1d9bf0" if "SHADOW" in source else "#ffae00"
-    st.markdown(f'<div class="panel-header"><span class="panel-title">INTEL FEED</span><span class="panel-title" style="color:{color};">{source}</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">VOLUME PRESSURE</span><span class="panel-meta">INTRADAY</span></div>', unsafe_allow_html=True)
     
-    for item in feed:
-        # Time formatting
-        ts = item.get('time', 0)
-        time_str = "LIVE"
-        if ts > 0:
-            try:
-                dt = datetime.fromtimestamp(ts)
-                delta = datetime.now() - dt
-                mins = int(delta.total_seconds() / 60)
-                time_str = f"{mins}m" if mins < 60 else f"{mins//60}h"
-            except: pass
-            
+    flow = engine.data.get('flow', {})
+    if flow:
+        buy = flow.get('BUY', 0)
+        sell = flow.get('SELL', 0)
+        net = flow.get('NET', 'N/A')
+        
         st.markdown(f"""
-            <div class="tweet-box">
-                <div class="tweet-header">
-                    <span class="tweet-handle">{item['handle']}</span>
-                    <span class="tweet-verified">☑</span>
-                    <span class="tweet-time">{time_str}</span>
+            <div style="font-size:10px; margin-bottom:5px; display:flex; justify-content:space-between;">
+                <span>BUYING PRESSURE</span><span class="pos mono">{buy:.1f}%</span>
+            </div>
+            <div class="cp-bar-bg"><div class="cp-bar-fill" style="width:{buy}%; background:#00ff41;"></div></div>
+            
+            <div style="font-size:10px; margin-top:10px; margin-bottom:5px; display:flex; justify-content:space-between;">
+                <span>SELLING PRESSURE</span><span class="neg mono">{sell:.1f}%</span>
+            </div>
+            <div class="cp-bar-bg"><div class="cp-bar-fill" style="width:{sell}%; background:#ff3b3b;"></div></div>
+            
+            <div style="margin-top:15px; border-top:1px dashed #333; padding-top:10px; text-align:center;">
+                <span style="font-size:9px; color:#666;">NET FLOW STATE</span>
+                <div style="font-size:16px; font-weight:bold; color:#fff;">{net}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("NO INTRADAY DATA AVAILABLE")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_narrative_panel():
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">TECHNICAL NARRATIVE</span></div>', unsafe_allow_html=True)
+    
+    stats = engine.data.get('regime_stats', {})
+    if stats:
+        rsi = stats.get('RSI', 50)
+        sma = stats.get('SMA20', 0)
+        curr = engine.data['hist']['Close'].iloc[-1]
+        
+        rsi_desc = "OVERSOLD" if rsi < 30 else "OVERBOUGHT" if rsi > 70 else "NEUTRAL"
+        trend_desc = "ABOVE" if curr > sma else "BELOW"
+        
+        text = f"""
+        ASSET IS CURRENTLY TRADING <b>{trend_desc}</b> THE 20-DAY MOVING AVERAGE (${sma:.2f}). 
+        MOMENTUM IS <b>{rsi_desc}</b> (RSI: {rsi:.1f}). 
+        VOLUME FLOW INDICATES A NET <b>{engine.data.get('flow', {}).get('NET', 'NEUTRAL')}</b> BIAS IN TODAYS SESSION.
+        """
+        st.markdown(f'<div class="narrative-text">{text}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown("INSUFFICIENT DATA FOR NARRATIVE")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_ownership_matrix():
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">INSTITUTIONAL HOLDERS</span><span class="panel-meta">13F (REAL)</span></div>', unsafe_allow_html=True)
+    
+    holders = engine.data.get('top_holders', [])
+    
+    if holders:
+        st.markdown('<div class="own-row own-header"><span>ENTITY</span><span>SHARES</span><span>DATE</span></div>', unsafe_allow_html=True)
+        for h in holders:
+            # yfinance returns different col names sometimes, handle gracefully
+            name = h.get('Holder', 'N/A')
+            shares = h.get('Shares', 0)
+            # Format shares to millions/billions
+            if shares > 1e9: share_str = f"{shares/1e9:.1f}B"
+            elif shares > 1e6: share_str = f"{shares/1e6:.1f}M"
+            else: share_str = str(shares)
+            
+            date = h.get('Date Reported', 'N/A')
+            if isinstance(date, (pd.Timestamp, datetime)): date = date.strftime('%Y-%m-%d')
+            
+            st.markdown(f"""
+                <div class="own-row">
+                    <span style="color:#ddd; font-weight:600;">{name}</span>
+                    <span class="mono accent">{share_str}</span>
+                    <span class="mono muted">{date}</span>
                 </div>
-                <div class="tweet-body">{item['text']}</div>
+            """, unsafe_allow_html=True)
+    else:
+        st.markdown("<div style='text-align:center; padding:20px; color:#555;'>NO 13F DATA AVAILABLE VIA API</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_liquidity_profile():
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">FLOAT STRUCTURE</span></div>', unsafe_allow_html=True)
+    
+    liq = engine.data.get('liq', {})
+    if liq:
+        locked = liq.get('LOCKED', 0)
+        float_pct = liq.get('FLOAT', 100)
+        
+        st.markdown(f"""
+            <div style="display:flex; height:8px; width:100%; background:#222; margin-bottom:5px;">
+                <div style="width:{locked}%; background:#444;"></div>
+                <div style="width:{float_pct}%; background:#00ff41;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:8px; color:#666;">
+                <span>LOCKED / INSIDERS: {locked}%</span>
+                <span>PUBLIC FLOAT: {float_pct}%</span>
             </div>
         """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-def render_chart(df):
+def render_chart():
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">PRICE ACTION</span><span class="panel-title">NVDA [REAL]</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">PRICE ACTION</span><span class="panel-meta">1 MONTH</span></div>', unsafe_allow_html=True)
     
-    if not df.empty:
-        fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'],
-                                             increasing_line_color='#00ff41', decreasing_line_color='#ff3b3b')])
-        fig.update_layout(
-            template="plotly_dark", height=250, margin=dict(l=0,r=40,t=10,b=0),
-            paper_bgcolor='#080808', plot_bgcolor='#080808',
-            xaxis_rangeslider_visible=False,
-            yaxis=dict(side='right', showgrid=True, gridcolor='#222')
-        )
+    hist = engine.data.get('hist', pd.DataFrame())
+    if not hist.empty:
+        fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'],
+                                             increasing_line_color='#ffae00', decreasing_line_color='#333')])
+        fig.update_layout(template="plotly_dark", height=250, margin=dict(l=0,r=40,t=10,b=0),
+                          paper_bgcolor='#0b0b0b', plot_bgcolor='#0b0b0b',
+                          xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.markdown("NO CHART DATA")
+        st.markdown("CHART DATA UNAVAILABLE")
     st.markdown('</div>', unsafe_allow_html=True)
 
-def render_risk_delta(deltas):
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">RISK & DELTA</span></div>', unsafe_allow_html=True)
-    
-    # Deltas
-    for d in deltas:
-        st.markdown(f"""
-            <div class="delta-row">
-                <div style="display:flex; align-items:center;">
-                    <span style="margin-right:8px;">{d['icon']}</span>
-                    <span style="color:#ccc;">{d['desc']}</span>
-                </div>
-                <span class="mono" style="background:#111; padding:2px 5px; font-size:10px;">{d['impact']}</span>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    # Hard Risk Monitor (Real Logic)
-    st.markdown("""
-        <div style="margin-top:15px;">
-            <div class="risk-alert">
-                <div style="color:#ff3b3b; font-size:12px;">⚡</div>
-                <div style="font-size:11px; color:#ffaaaa;"><b>CORRELATION SPIKE</b><br>TECH/RATES > 0.85</div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+# --- 6. LAYOUT EXECUTION ---
 
-# --- 6. EXECUTION ---
-engine = SituationEngine()
-engine.run_scan()
-
-if "ERROR" in engine.mode:
-    st.error(engine.mode)
+if "API ERROR" in engine.mode or engine.mode == "NO DATA FOUND":
+    st.error(f"CONNECTION FAILURE: {engine.mode}. WAITING FOR LIVE UPLINK...")
 else:
-    render_regime(engine.data['regime'])
+    render_header()
     
-    # Main Grid
-    c1, c2, c3 = st.columns([1, 1, 1])
+    c1, c2 = st.columns([1, 2])
     
     with c1:
-        render_risk_delta(engine.data['deltas'])
-        # Conviction Map Placeholder using Real Data
-        st.markdown('<div class="panel"><div class="panel-header"><span class="panel-title">CONVICTION</span></div>', unsafe_allow_html=True)
-        st.markdown('<div style="background:#111; padding:8px; border-left:3px solid #00ff41; margin-bottom:5px;"><div style="font-size:12px; font-weight:bold; color:#fff;">NVDA</div><div class="mono pos" style="font-size:10px;">HIGH BETA</div></div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        render_liquidity_profile()
+        render_flow_panel()
+        render_narrative_panel()
         
     with c2:
-        render_chart(engine.data['chart'])
-        
-    with c3:
-        render_shadow_feed(engine.data['feed'], engine.data['feed_source'])
+        render_ownership_matrix()
+        render_chart()
 
-# Footer
+# --- 7. FOOTER ---
 now = datetime.now(pytz.timezone('US/Eastern')).strftime("%H:%M:%S")
-st.markdown(f'<div style="position:fixed; bottom:0; left:0; width:100%; background:#000; border-top:1px solid #333; padding:2px 15px; font-family:monospace; font-size:9px; color:#555;">STATUS: {engine.mode} | SHADOW UPLINK: ENABLED | {now} ET</div>', unsafe_allow_html=True)
+color = "#00ff41" if engine.mode == "LIVE UPLINK" else "#ff3b3b"
+st.markdown(f"""
+    <div class="status-bar">
+        <span>STATUS: <span style="color:{color}">{engine.mode}</span></span>
+        <span>NY: {now} ET</span>
+    </div>
+""", unsafe_allow_html=True)
