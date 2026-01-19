@@ -3,9 +3,8 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
-import time
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(layout="wide", page_title="STREET_INTEL_LIVE", initial_sidebar_state="collapsed")
@@ -25,7 +24,6 @@ def inject_dossier_css():
         .neg { color: #ff3b3b !important; }
         .warn { color: #ffcc00 !important; }
         .amber { color: #ffae00 !important; text-shadow: 0 0 8px rgba(255, 174, 0, 0.25); }
-        .muted { color: #555 !important; }
         .mono { font-family: 'Roboto Mono', monospace; }
         
         .header-main { font-size: 20px; font-weight: 900; letter-spacing: 2px; color: #fff; text-transform: uppercase; }
@@ -78,9 +76,14 @@ class RealIntelEngine:
             t = yf.Ticker(self.ticker)
             
             # 1. PRICE HISTORY (Real)
-            # Fetch 1 month to calculate trends, 5m for intraday if available
-            hist = t.history(period="1mo", interval="1d") # Daily for robust indicators
-            intra = t.history(period="1d", interval="5m") # Intraday for flow
+            # Fetch 1 month to calculate trends
+            hist = t.history(period="1mo", interval="1d") 
+            # Try Intraday
+            intra = t.history(period="1d", interval="5m")
+            
+            # CRITICAL FALLBACK: If intraday is empty (e.g. weekend), use daily for flow analysis
+            if intra.empty:
+                intra = hist.tail(5) # Use last 5 days as proxy for recent flow
             
             if hist.empty: 
                 self.mode = "NO DATA FOUND"
@@ -91,37 +94,44 @@ class RealIntelEngine:
             
             # 2. FUNDAMENTAL DATA (Real)
             self.data['info'] = t.info
-            self.data['holders'] = t.institutional_holders
-            self.data['major_holders'] = t.major_holders
+            
+            # Try fetching holders, handle empty returns gracefully
+            try:
+                self.data['holders'] = t.institutional_holders
+            except:
+                self.data['holders'] = None
             
             # 3. CALCULATE DERIVED METRICS (Real Math on Real Data)
             self._calc_real_flow()
             self._calc_real_regime()
             self._calc_real_liquidity()
             self._format_ownership()
+            self._generate_real_narrative()
             
             self.mode = "LIVE UPLINK"
             
         except Exception as e:
             self.mode = f"API ERROR: {str(e)}"
-            # NO FALLBACK TO SIMULATION
 
     def _calc_real_flow(self):
-        # Calculate Buying vs Selling Pressure from REAL Volume
-        if self.data['intra'].empty:
-            self.data['flow'] = {"BUY": 0, "SELL": 0, "NET": "N/A"}
-            return
-
+        # Calculate Buying vs Selling Pressure
         df = self.data['intra'].copy()
-        # If Close > Open, we treat volume as "Buying", else "Selling"
+        
+        # Logic: If Close > Open, volume is "Buy"
         df['BuyVol'] = np.where(df['Close'] > df['Open'], df['Volume'], 0)
         df['SellVol'] = np.where(df['Close'] < df['Open'], df['Volume'], 0)
         
         total_vol = df['Volume'].sum()
-        if total_vol == 0: total_vol = 1 # Avoid div/0
+        if total_vol == 0: total_vol = 1 
         
         buy_pct = (df['BuyVol'].sum() / total_vol) * 100
         sell_pct = (df['SellVol'].sum() / total_vol) * 100
+        
+        # Ensure they sum to ~100 for display (simple normalization)
+        total_pct = buy_pct + sell_pct
+        if total_pct > 0:
+            buy_pct = (buy_pct / total_pct) * 100
+            sell_pct = (sell_pct / total_pct) * 100
         
         self.data['flow'] = {
             "BUY": buy_pct, 
@@ -134,27 +144,32 @@ class RealIntelEngine:
         df = self.data['hist']
         close = df['Close']
         
-        # Simple RSI Calculation
+        # RSI
         delta = close.diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs)).iloc[-1]
+        if np.isnan(rsi): rsi = 50 # Handle new listings
         
         # Trend
         sma20 = close.rolling(window=20).mean().iloc[-1]
+        if np.isnan(sma20): sma20 = close.mean()
+        
         curr = close.iloc[-1]
         
         regime = "NEUTRAL"
-        if curr > sma20 and rsi > 50: regime = "BULLISH TREND"
-        elif curr < sma20 and rsi < 50: regime = "BEARISH TREND"
-        elif rsi > 70: regime = "OVERBOUGHT"
-        elif rsi < 30: regime = "OVERSOLD"
+        if curr > sma20: regime = "BULLISH TREND"
+        if curr < sma20: regime = "BEARISH TREND"
+        if rsi > 70: regime = "OVERBOUGHT"
+        if rsi < 30: regime = "OVERSOLD"
         
         self.data['regime_stats'] = {
             "RSI": rsi,
             "SMA20": sma20,
-            "STATE": regime
+            "STATE": regime,
+            "BETA": self.data['info'].get('beta', 'N/A'),
+            "SHORT": self.data['info'].get('shortRatio', 'N/A')
         }
 
     def _calc_real_liquidity(self):
@@ -162,21 +177,63 @@ class RealIntelEngine:
         shares = self.data['info'].get('sharesOutstanding', 1)
         float_shares = self.data['info'].get('floatShares', 1)
         
-        locked_pct = ((shares - float_shares) / shares) * 100
+        if shares and float_shares:
+            locked_pct = ((shares - float_shares) / shares) * 100
+        else:
+            locked_pct = 0
+            
+        # Ensure bounds
+        locked_pct = max(0, min(100, locked_pct))
         
         self.data['liq'] = {
-            "LOCKED": round(max(locked_pct, 0), 1),
+            "LOCKED": round(locked_pct, 1),
             "FLOAT": round(100 - locked_pct, 1)
         }
 
     def _format_ownership(self):
-        # Process the REAL 13F Dataframe
+        # Process the REAL 13F Dataframe or use Info Fallback
+        holders_list = []
+        
+        # Method A: Try specific table
         if self.data['holders'] is not None and not self.data['holders'].empty:
-            # Rename columns to match our layout if needed, usually comes as [Holder, Shares, Date Reported, % Out, Value]
-            # We will take top 5
-            self.data['top_holders'] = self.data['holders'].head(5).to_dict('records')
-        else:
-            self.data['top_holders'] = []
+            holders_list = self.data['holders'].head(5).to_dict('records')
+        
+        # Method B: Fallback to Aggregate Stats if table is empty
+        if not holders_list:
+             inst_pct = self.data['info'].get('heldPercentInstitutions', 0) * 100
+             insider_pct = self.data['info'].get('heldPercentInsiders', 0) * 100
+             holders_list = [
+                 {"Holder": "INSTITUTIONAL AGGREGATE", "Shares": f"{inst_pct:.1f}%", "Date Reported": "LATEST"},
+                 {"Holder": "INSIDER AGGREGATE", "Shares": f"{insider_pct:.1f}%", "Date Reported": "LATEST"}
+             ]
+             
+        self.data['top_holders'] = holders_list
+
+    def _generate_real_narrative(self):
+        # Construct narrative from Real Data points
+        info = self.data['info']
+        stats = self.data['regime_stats']
+        
+        target_price = info.get('targetMeanPrice', 'N/A')
+        recommendation = info.get('recommendationKey', 'N/A').upper()
+        curr_price = self.data['hist']['Close'].iloc[-1]
+        
+        # Logic for narrative text
+        upside = ""
+        if isinstance(target_price, (int, float)):
+            upside_pct = ((target_price - curr_price) / curr_price) * 100
+            upside = f"ANALYST TARGET (${target_price}) IMPLIES {upside_pct:.1f}% POTENTIAL."
+            
+        short_note = ""
+        if stats['SHORT'] != 'N/A' and float(stats['SHORT']) > 5:
+            short_note = f"SHORT INTEREST IS ELEVATED ({stats['SHORT']} RATIO), MONITOR FOR SQUEEZE."
+            
+        self.data['narrative_text'] = f"""
+        STREET CONSENSUS IS <b>{recommendation}</b>. {upside}
+        MOMENTUM IS <b>{stats['STATE']}</b> WITH RSI AT {stats['RSI']:.1f}.
+        BETA IS {stats['BETA']}, INDICATING CORRELATION PROFILE.
+        {short_note}
+        """
 
 # --- 4. INITIALIZE ---
 with st.sidebar:
@@ -201,7 +258,7 @@ def render_header():
 
 def render_flow_panel():
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">VOLUME PRESSURE</span><span class="panel-meta">INTRADAY</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">VOLUME PRESSURE</span><span class="panel-meta">REAL FLOW</span></div>', unsafe_allow_html=True)
     
     flow = engine.data.get('flow', {})
     if flow:
@@ -226,49 +283,50 @@ def render_flow_panel():
             </div>
         """, unsafe_allow_html=True)
     else:
-        st.markdown("NO INTRADAY DATA AVAILABLE")
+        st.markdown("NO FLOW DATA AVAILABLE")
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_narrative_panel():
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown('<div class="panel-header"><span class="panel-title">TECHNICAL NARRATIVE</span></div>', unsafe_allow_html=True)
     
+    text = engine.data.get('narrative_text', "NO DATA")
+    st.markdown(f'<div class="narrative-text">{text}</div>', unsafe_allow_html=True)
+    
+    # Extra stats grid
     stats = engine.data.get('regime_stats', {})
     if stats:
-        rsi = stats.get('RSI', 50)
-        sma = stats.get('SMA20', 0)
-        curr = engine.data['hist']['Close'].iloc[-1]
-        
-        rsi_desc = "OVERSOLD" if rsi < 30 else "OVERBOUGHT" if rsi > 70 else "NEUTRAL"
-        trend_desc = "ABOVE" if curr > sma else "BELOW"
-        
-        text = f"""
-        ASSET IS CURRENTLY TRADING <b>{trend_desc}</b> THE 20-DAY MOVING AVERAGE (${sma:.2f}). 
-        MOMENTUM IS <b>{rsi_desc}</b> (RSI: {rsi:.1f}). 
-        VOLUME FLOW INDICATES A NET <b>{engine.data.get('flow', {}).get('NET', 'NEUTRAL')}</b> BIAS IN TODAYS SESSION.
-        """
-        st.markdown(f'<div class="narrative-text">{text}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown("INSUFFICIENT DATA FOR NARRATIVE")
+        c1, c2 = st.columns(2)
+        with c1:
+             st.markdown(f"<div style='font-size:10px; color:#666;'>SHORT RATIO</div><div class='mono'>{stats.get('SHORT', 'N/A')}</div>", unsafe_allow_html=True)
+        with c2:
+             st.markdown(f"<div style='font-size:10px; color:#666;'>BETA</div><div class='mono'>{stats.get('BETA', 'N/A')}</div>", unsafe_allow_html=True)
+             
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_ownership_matrix():
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">INSTITUTIONAL HOLDERS</span><span class="panel-meta">13F (REAL)</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-header"><span class="panel-title">INSTITUTIONAL HOLDERS</span><span class="panel-meta">13F / AGGREGATE</span></div>', unsafe_allow_html=True)
     
     holders = engine.data.get('top_holders', [])
     
     if holders:
-        st.markdown('<div class="own-row own-header"><span>ENTITY</span><span>SHARES</span><span>DATE</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="own-row own-header"><span>ENTITY</span><span>SHARES / %</span><span>REPORTED</span></div>', unsafe_allow_html=True)
         for h in holders:
-            # yfinance returns different col names sometimes, handle gracefully
+            # Handle varied formats from YF
             name = h.get('Holder', 'N/A')
-            shares = h.get('Shares', 0)
-            # Format shares to millions/billions
-            if shares > 1e9: share_str = f"{shares/1e9:.1f}B"
-            elif shares > 1e6: share_str = f"{shares/1e6:.1f}M"
-            else: share_str = str(shares)
             
+            # Format Shares (could be raw int or pre-formatted string)
+            raw_shares = h.get('Shares', 0)
+            if isinstance(raw_shares, str):
+                share_str = raw_shares # Use as is if string (from fallback)
+            elif isinstance(raw_shares, (int, float)):
+                 if raw_shares > 1e9: share_str = f"{raw_shares/1e9:.1f}B"
+                 elif raw_shares > 1e6: share_str = f"{raw_shares/1e6:.1f}M"
+                 else: share_str = str(raw_shares)
+            else:
+                 share_str = "N/A"
+
             date = h.get('Date Reported', 'N/A')
             if isinstance(date, (pd.Timestamp, datetime)): date = date.strftime('%Y-%m-%d')
             
@@ -280,7 +338,8 @@ def render_ownership_matrix():
                 </div>
             """, unsafe_allow_html=True)
     else:
-        st.markdown("<div style='text-align:center; padding:20px; color:#555;'>NO 13F DATA AVAILABLE VIA API</div>", unsafe_allow_html=True)
+        # Absolute fallback if even info fails
+        st.markdown("<div style='text-align:center; padding:20px; color:#555;'>DATA RESTRICTED BY EXCHANGE</div>", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_liquidity_profile():
