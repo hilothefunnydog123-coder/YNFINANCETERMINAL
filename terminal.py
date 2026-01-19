@@ -127,7 +127,7 @@ class DecisionEngine:
             t = yf.Ticker(self.ticker)
             self.data['hist'] = t.history(period="1d", interval="5m")
             self.data['info'] = t.info
-            
+
             # 3. GENERATE "VC ALPHA" LAYERS (Simulated Intelligence)
             self._generate_regime()
             self._generate_ai_brief()
@@ -237,6 +237,14 @@ def render_regime_panel(regime):
             </div>
         </div>
     """, unsafe_allow_html=True)
+components.html(
+    """
+    <!-- Adsterra CPM Ad -->
+    <script src="https://pl28518975.effectivegatecpm.com/4b/b8/00/4bb80075f97ec2e7da97c462a677bc5c.js"></script>
+    """,
+    height=120,
+)
+
 
 def render_ai_brief(brief):
     items = "".join([f'<div class="brief-item">{item}</div>' for item in brief])
