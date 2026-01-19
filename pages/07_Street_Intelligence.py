@@ -3,416 +3,295 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
-import random
-import time
 
-# --- 1. SYSTEM CONFIGURATION ---
-st.set_page_config(layout="wide", page_title="SOVEREIGN_INSTITUTIONAL", initial_sidebar_state="collapsed")
+# --- 1. CONFIGURATION ---
+st.set_page_config(layout="wide", page_title="STREET_INTEL_LIVE", initial_sidebar_state="collapsed")
 
-# --- 2. THE BLOOMBERG/TERMINAL CSS ENGINE ---
-def inject_terminal_css():
+# --- 2. CSS ENGINE (Amber Dossier Theme) ---
+def inject_dossier_css():
     st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
         
-        /* GLOBAL RESET */
-        .stApp { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; }
+        .stApp { background-color: #050505; color: #d0d0d0; font-family: 'Inter', sans-serif; }
         * { border-radius: 0px !important; }
-        
-        /* REMOVE STREAMLIT PADDING */
-        .block-container { padding-top: 0rem; padding-bottom: 2rem; padding-left: 1rem; padding-right: 1rem; }
+        .block-container { padding: 1rem 1.5rem; max-width: 100%; }
         [data-testid="stHeader"] { display: none; }
         
-        /* UTILITY CLASSES */
-        .pos { color: #00ff00 !important; }
+        /* COLORS */
+        .pos { color: #00ff41 !important; }
         .neg { color: #ff3b3b !important; }
-        .neu { color: #888 !important; }
+        .warn { color: #ffcc00 !important; }
+        .amber { color: #ffae00 !important; text-shadow: 0 0 8px rgba(255, 174, 0, 0.25); }
         .mono { font-family: 'Roboto Mono', monospace; }
-        .caps { text-transform: uppercase; letter-spacing: 1px; font-weight: 600; font-size: 11px; color: #666; }
         
-        /* API STATUS INDICATOR (Top Right) */
-        .api-pill {
-            position: fixed; top: 10px; right: 20px; z-index: 9999;
-            background: #000; border: 1px solid #333; padding: 5px 10px;
-            font-family: 'Roboto Mono', monospace; font-size: 10px; font-weight: bold;
-            display: flex; align-items: center; gap: 8px;
-        }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
-        .online { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
-        .offline { background: #ff3b3b; box-shadow: 0 0 5px #ff3b3b; animation: blink 1s infinite; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-
-        /* 1. TICKER TAPE (TOP) */
-        .ticker-bar {
-            width: 100%; background: #000; border-bottom: 1px solid #333;
-            color: #ccc; font-family: 'Roboto Mono', monospace; font-size: 12px;
-            white-space: nowrap; overflow: hidden; padding: 6px 0; margin-bottom: 10px;
-        }
-        .ticker-content { display: inline-block; animation: marquee 60s linear infinite; }
-        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        
-        /* 2. PANEL CONTAINERS (The "Modules") */
+        /* PANELS */
         .panel {
-            background: #0a0a0a; border: 1px solid #222; margin-bottom: 10px; padding: 10px;
-            height: 100%; position: relative;
+            background: #0b0b0b; border: 1px solid #222; margin-bottom: 12px; padding: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); position: relative; min-height: 150px;
         }
         .panel-header {
-            border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 8px;
+            border-bottom: 1px solid #333; padding-bottom: 6px; margin-bottom: 10px;
             display: flex; justify-content: space-between; align-items: center;
         }
-        .panel-title { font-size: 12px; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; }
+        .panel-title { font-size: 11px; font-weight: 800; color: #ffae00; text-transform: uppercase; letter-spacing: 1px; }
         
-        /* 3. MARKET DATA ROWS */
-        .mkt-row {
-            display: flex; justify-content: space-between; font-family: 'Roboto Mono', monospace;
-            font-size: 13px; padding: 3px 0; border-bottom: 1px dashed #1a1a1a;
+        /* DATA GRIDS */
+        .own-row {
+            display: grid; grid-template-columns: 3fr 1fr 1fr; 
+            font-family: 'Roboto Mono', monospace; font-size: 10px; 
+            padding: 5px 0; border-bottom: 1px dashed #1a1a1a; align-items: center;
         }
-        .mkt-row:last-child { border-bottom: none; }
+        .own-header { font-weight: bold; color: #555; font-size: 9px; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px; }
         
-        /* 4. NEWS FEED STYLE */
-        .news-item {
-            font-size: 12px; border-left: 2px solid #333; padding-left: 8px; margin-bottom: 8px;
-            color: #ddd; font-family: 'Inter', sans-serif;
-        }
-        .news-time { color: #555; font-size: 10px; font-family: 'Roboto Mono', monospace; margin-right: 5px; }
-        .news-headline { font-weight: 600; text-transform: uppercase; }
+        .cp-bar-bg { width: 100%; background: #1a1a1a; height: 4px; margin: 4px 0; }
+        .cp-bar-fill { height: 100%; }
         
-        /* 5. FOOTER / CLOCKS */
+        .header-main { font-size: 20px; font-weight: 900; letter-spacing: 2px; color: #fff; text-transform: uppercase; }
+        .header-sub { font-size: 10px; color: #ffae00; font-family: 'Roboto Mono'; letter-spacing: 1px; }
+        
         .status-bar {
-            position: fixed; bottom: 0; left: 0; width: 100%; background: #080808; border-top: 1px solid #333;
-            padding: 4px 10px; display: flex; justify-content: space-between; font-family: 'Roboto Mono', monospace;
-            font-size: 10px; color: #555; z-index: 999;
+            position: fixed; bottom: 0; left: 0; width: 100%; background: #000; border-top: 1px solid #ffae00;
+            padding: 3px 15px; display: flex; justify-content: space-between; font-family: 'Roboto Mono', monospace;
+            font-size: 9px; color: #ffae00; z-index: 999;
         }
         
-        /* HIDE SCROLLBARS */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #333; }
+        ::-webkit-scrollbar { width: 5px; background: #000; }
+        ::-webkit-scrollbar-thumb { background: #ffae00; }
         </style>
     """, unsafe_allow_html=True)
 
-inject_terminal_css()
+inject_dossier_css()
 
-# --- 3. ROBUST DATA ENGINE (Self-Healing) ---
-class MarketDataEngine:
-    def __init__(self, main_ticker):
-        self.main_ticker = main_ticker
-        self.mode = "LIVE"
+# --- 3. REAL DATA ENGINE ---
+class RealIntelEngine:
+    def __init__(self, ticker):
+        self.ticker = ticker
+        self.mode = "CONNECTING..."
         self.data = {}
         
     def fetch(self):
         try:
-            # 1. GLOBAL INDICES & CRYPTO (Batch Fetch)
-            indices = {
-                "S&P 500": "^GSPC", "NASDAQ": "^IXIC", "DOW JONES": "^DJI", 
-                "RUSSELL 2K": "^RUT", "VIX": "^VIX", "10Y YIELD": "^TNX", "DXY": "DX-Y.NYB",
-                "BTC-USD": "BTC-USD", "ETH-USD": "ETH-USD"
-            }
-            # Batch download for speed
-            tickers_list = list(indices.values()) + [self.main_ticker]
-            raw_data = yf.download(tickers_list, period="2d", progress=False)['Close']
+            t = yf.Ticker(self.ticker)
             
-            # Process Indices
-            self.data['indices'] = {}
-            for name, sym in indices.items():
-                if sym in raw_data.columns:
-                    curr = raw_data[sym].iloc[-1]
-                    prev = raw_data[sym].iloc[-2]
-                    chg = ((curr - prev) / prev) * 100
-                    self.data['indices'][name] = {"price": curr, "chg": chg}
-                else:
-                    self.data['indices'][name] = {"price": 0.0, "chg": 0.0}
-
-            # 2. NEWS (Real)
-            main_stock = yf.Ticker(self.main_ticker)
-            news = main_stock.news
-            self.data['news'] = [n['title'] for n in news[:5]] if news else []
-
-            # 3. MAIN CHART
-            self.data['hist'] = main_stock.history(period="1d", interval="5m")
+            # 1. PRICE HISTORY (Real)
+            hist = t.history(period="1mo", interval="1d") 
+            intra = t.history(period="1d", interval="5m")
             
-            # 4. MARKET INTERNALS (Simulated for "Pro" look as free APIs lack this)
-            self.data['internals'] = self._simulate_internals()
+            # FLATTEN COLUMNS (Critical Fix for MultiIndex Error)
+            if isinstance(hist.columns, pd.MultiIndex): hist.columns = hist.columns.get_level_values(0)
+            if isinstance(intra.columns, pd.MultiIndex): intra.columns = intra.columns.get_level_values(0)
             
-            self.mode = "ONLINE"
+            # Fallback for empty intraday (e.g. weekend)
+            if intra.empty: intra = hist.tail(5)
+            
+            if hist.empty: 
+                self.mode = "NO DATA FOUND"
+                return
 
+            self.data['hist'] = hist
+            self.data['intra'] = intra
+            
+            # 2. FUNDAMENTAL DATA (Real)
+            self.data['info'] = t.info
+            try:
+                self.data['holders'] = t.institutional_holders
+            except:
+                self.data['holders'] = None
+            
+            # 3. DERIVED METRICS (Real Math)
+            self._calc_real_flow()
+            self._calc_real_regime()
+            self._calc_real_liquidity()
+            self._format_ownership()
+            self._generate_real_narrative()
+            
+            self.mode = "LIVE UPLINK"
+            
         except Exception as e:
-            # FALLBACK TO SIMULATION
-            self.mode = "OFFLINE"
-            self._generate_simulation()
+            self.mode = f"API ERROR: {str(e)}"
 
-    def _simulate_internals(self):
-        # Realistic "Pro" data generation
-        return {
-            "AD_LINE": random.randint(1200, 2500),
-            "PUT_CALL": round(random.uniform(0.7, 1.2), 2),
-            "TRIN": round(random.uniform(0.8, 1.5), 2),
-            "VOL_UP_DN": f"{random.randint(4,9)}:1"
+    def _calc_real_flow(self):
+        # Buy/Sell Pressure based on Candle Color * Volume
+        df = self.data['intra'].copy()
+        df['BuyVol'] = np.where(df['Close'] > df['Open'], df['Volume'], 0)
+        df['SellVol'] = np.where(df['Close'] < df['Open'], df['Volume'], 0)
+        
+        total = df['Volume'].sum() or 1
+        buy_pct = (df['BuyVol'].sum() / total) * 100
+        sell_pct = (df['SellVol'].sum() / total) * 100
+        
+        # Normalize
+        if buy_pct + sell_pct > 0:
+            norm = 100 / (buy_pct + sell_pct)
+            buy_pct *= norm
+            sell_pct *= norm
+            
+        self.data['flow'] = {
+            "BUY": buy_pct, 
+            "SELL": sell_pct, 
+            "NET": "ACCUM" if buy_pct > sell_pct else "DISTRIB"
         }
 
-    def _generate_simulation(self):
-        # Fake Global Markets to prevent blank screen
-        self.data['indices'] = {
-            "S&P 500": {"price": 4780.20, "chg": 0.42},
-            "NASDAQ": {"price": 16300.50, "chg": -0.18},
-            "VIX": {"price": 14.23, "chg": 1.2},
-            "10Y YIELD": {"price": 4.11, "chg": 0.05},
-            "DXY": {"price": 103.82, "chg": 0.12},
-            "BTC-USD": {"price": 43500.20, "chg": 2.1},
-            "ETH-USD": {"price": 2300.50, "chg": 1.4}
+    def _calc_real_regime(self):
+        # RSI & Trend from Real Price
+        df = self.data['hist']
+        close = df['Close']
+        
+        delta = close.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs)).iloc[-1]
+        if np.isnan(rsi): rsi = 50
+        
+        sma20 = close.rolling(20).mean().iloc[-1]
+        if np.isnan(sma20): sma20 = close.mean()
+        
+        regime = "NEUTRAL"
+        if close.iloc[-1] > sma20: regime = "BULLISH TREND"
+        elif close.iloc[-1] < sma20: regime = "BEARISH TREND"
+        if rsi > 70: regime = "OVERBOUGHT"
+        elif rsi < 30: regime = "OVERSOLD"
+        
+        self.data['regime_stats'] = {
+            "RSI": rsi, "SMA20": sma20, "STATE": regime,
+            "BETA": self.data['info'].get('beta', 'N/A'),
+            "SHORT": self.data['info'].get('shortRatio', 'N/A')
         }
-        # Fake News
-        self.data['news'] = [
-            "FED SPEAKERS SIGNAL RATES HIGHER FOR LONGER",
-            f"{self.main_ticker} GUIDES ABOVE EXPECTATIONS FOR Q4",
-            "OIL RISES ON GEOPOLITICAL TENSIONS",
-            "CPI YOY COMES IN HOT AT 3.4%",
-            "INSTITUTIONAL FLOWS SHOW ROTATION INTO TECH"
-        ]
-        # Fake Candles
-        dates = pd.date_range(end=datetime.now(), periods=50, freq="5min")
-        prices = 150 + np.random.randn(50).cumsum()
-        self.data['hist'] = pd.DataFrame({
-            "Open": prices, "High": prices+1, "Low": prices-1, "Close": prices, "Volume": np.random.randint(1000,5000,50)
-        }, index=dates)
-        self.data['internals'] = self._simulate_internals()
 
-# --- 4. INITIALIZE DATA ---
-target_ticker = st.sidebar.text_input("SYMBOL", "NVDA").upper()
-engine = MarketDataEngine(target_ticker)
+    def _calc_real_liquidity(self):
+        shares = self.data['info'].get('sharesOutstanding', 1)
+        float_shares = self.data['info'].get('floatShares', 1)
+        
+        if shares and float_shares:
+            locked_pct = ((shares - float_shares) / shares) * 100
+        else:
+            locked_pct = 0
+        
+        locked_pct = max(0, min(100, locked_pct))
+        self.data['liq'] = {"LOCKED": round(locked_pct, 1), "FLOAT": round(100 - locked_pct, 1)}
+
+    def _format_ownership(self):
+        # Prepare Real 13F Table
+        holders_list = []
+        if self.data['holders'] is not None and not self.data['holders'].empty:
+            holders_list = self.data['holders'].head(5).to_dict('records')
+        else:
+            # Fallback to Aggregate Stats if 13F list unavailable
+            inst_pct = self.data['info'].get('heldPercentInstitutions', 0) * 100
+            insider_pct = self.data['info'].get('heldPercentInsiders', 0) * 100
+            holders_list = [
+                {"Holder": "INSTITUTIONAL TOTAL", "Shares": f"{inst_pct:.1f}%", "Date Reported": "AGGREGATE"},
+                {"Holder": "INSIDER TOTAL", "Shares": f"{insider_pct:.1f}%", "Date Reported": "AGGREGATE"}
+            ]
+        self.data['top_holders'] = holders_list
+
+    def _generate_real_narrative(self):
+        info = self.data['info']
+        stats = self.data['regime_stats']
+        
+        rec = info.get('recommendationKey', 'N/A').upper().replace("_", " ")
+        target = info.get('targetMeanPrice', 'N/A')
+        curr = self.data['hist']['Close'].iloc[-1]
+        
+        upside_str = ""
+        if isinstance(target, (int, float)):
+            upside = ((target - curr) / curr) * 100
+            upside_str = f"ANALYST TARGET (${target}) IMPLIES {upside:.1f}% UPSIDE."
+            
+        self.data['narrative_text'] = f"""
+        STREET CONSENSUS IS <b>{rec}</b>. {upside_str}
+        TECHNICAL STATE IS <b>{stats['STATE']}</b> (RSI {stats['RSI']:.1f}).
+        BETA PROFILE: {stats['BETA']} (MARKET SENSITIVITY).
+        """
+
+# --- 4. RENDER UI ---
+with st.sidebar:
+    st.markdown("### // INTEL_DESK")
+    target = st.text_input("TICKER", "NVDA").upper()
+
+engine = RealIntelEngine(target)
 engine.fetch()
 
-# --- 5. UI COMPONENTS ---
+if "API ERROR" in engine.mode or engine.mode == "NO DATA FOUND":
+    st.error(f"CONNECTION FAILURE: {engine.mode}")
+else:
+    # Header
+    c1, c2 = st.columns([3, 1])
+    with c1:
+        st.markdown(f'<div class="header-main">{target} // LIVE DOSSIER</div>', unsafe_allow_html=True)
+        st.markdown('<div class="header-sub">REAL-TIME DATA ONLY • NO SIMULATION</div>', unsafe_allow_html=True)
+    with c2:
+        regime = engine.data['regime_stats']['STATE']
+        color = "#00ff41" if "BULL" in regime else "#ff3b3b" if "BEAR" in regime else "#ffae00"
+        st.markdown(f'<div style="text-align:right; font-family:monospace; color:{color}; border:1px solid {color}; padding:5px;">REGIME: {regime}</div>', unsafe_allow_html=True)
+    st.markdown("---")
 
-# A. API STATUS INDICATOR (The "Small Thing" you asked for)
-def render_api_status(status):
-    # Determines color based on status
-    color_class = "online" if status == "ONLINE" else "offline"
-    st.markdown(f"""
-        <div class="api-pill">
-            <span class="status-dot {color_class}"></span> API: {status}
-        </div>
-    """, unsafe_allow_html=True)
-
-# B. TICKER TAPE
-def render_ticker_tape():
-    tape_list = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "BTC-USD", "ETH-USD"]
-    tape_html = '<div class="ticker-bar"><div class="ticker-content">'
-    try:
-        # We try to use the engine's data if available to avoid double fetching
-        # For simplicity in this block, we use random values for speed in visual demo if cache misses
-        for t in tape_list:
-            # Mocking slight variance for visual movement
-            px = random.uniform(100, 3000) 
-            chg = random.uniform(-2, 2)
-            color = "#00ff00" if chg > 0 else "#ff3b3b"
-            tape_html += f'<span style="margin-right: 20px;">{t} <span style="color:#fff">{px:.2f}</span> <span style="color:{color}">{chg:+.2f}%</span></span>'
-    except:
-        tape_html += "DATA LINK SEVERED // CONNECTING TO BACKUP RELAY..."
-    tape_html += '</div></div>'
-    st.markdown(tape_html, unsafe_allow_html=True)
-
-# C. GLOBAL MARKETS PANEL
-def render_globals(data):
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">GLOBAL MKTS</span><span class="caps">REALTIME</span></div>', unsafe_allow_html=True)
+    # Main Grid
+    c1, c2 = st.columns([1, 2])
     
-    # Filter for traditional markets
-    keys = ["S&P 500", "NASDAQ", "VIX", "10Y YIELD", "DXY"]
-    for name in keys:
-        if name in data['indices']:
-            vals = data['indices'][name]
-            color = "pos" if vals['chg'] >= 0 else "neg"
-            st.markdown(f"""
-                <div class="mkt-row">
-                    <span style="color:#aaa">{name}</span>
-                    <span>
-                        <span style="color:#fff; margin-right:10px;">{vals['price']:,.2f}</span>
-                        <span class="{color} mono">{vals['chg']:+.2f}%</span>
-                    </span>
-                </div>
-            """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# D. CRYPTO DESK (Replacing Blank Box)
-def render_crypto(data):
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">CRYPTO DESK</span><span class="caps">24/7</span></div>', unsafe_allow_html=True)
-    
-    keys = ["BTC-USD", "ETH-USD"]
-    for name in keys:
-        if name in data['indices']:
-            vals = data['indices'][name]
-            color = "pos" if vals['chg'] >= 0 else "neg"
-            st.markdown(f"""
-                <div class="mkt-row">
-                    <span style="color:#aaa">{name}</span>
-                    <span>
-                        <span style="color:#fff; margin-right:10px;">{vals['price']:,.2f}</span>
-                        <span class="{color} mono">{vals['chg']:+.2f}%</span>
-                    </span>
-                </div>
-            """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# E. NEWS FEED
-def render_news(news_items):
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">NEWS WIRE</span><span class="caps">DJ/BBG</span></div>', unsafe_allow_html=True)
-    
-    for i, headline in enumerate(news_items):
-        time_offset = 5 * (i+1)
-        time_str = (datetime.now() - timedelta(minutes=time_offset)).strftime("%H:%M")
+    with c1:
+        # Liquidity
+        liq = engine.data['liq']
+        st.markdown('<div class="panel"><div class="panel-header"><span class="panel-title">FLOAT STRUCTURE</span></div>', unsafe_allow_html=True)
         st.markdown(f"""
-            <div class="news-item">
-                <span class="news-time">{time_str}</span>
-                <span class="news-headline">{headline.upper()}</span>
+            <div style="display:flex; height:8px; width:100%; background:#222; margin-bottom:5px;">
+                <div style="width:{liq['LOCKED']}%; background:#444;"></div>
+                <div style="width:{liq['FLOAT']}%; background:#00ff41;"></div>
             </div>
-        """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# F. KEY CHARTS
-def render_chart(hist, title):
-    st.markdown(f'<div class="panel" style="height: 400px; padding:0;">', unsafe_allow_html=True)
-    
-    fig = go.Figure()
-    # Candles
-    fig.add_trace(go.Candlestick(
-        x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'],
-        increasing_line_color='#00ff00', decreasing_line_color='#ff3b3b', name="Price"
-    ))
-    # VWAP (Simulated for visuals)
-    vwap = (hist['Close'] + hist['High'] + hist['Low']) / 3
-    fig.add_trace(go.Scatter(x=hist.index, y=vwap, line=dict(color='#00f0ff', width=1), name="VWAP"))
-    
-    fig.update_layout(
-        template="plotly_dark",
-        margin=dict(l=0, r=40, t=30, b=0), # Right margin for price scale
-        paper_bgcolor='#0a0a0a', plot_bgcolor='#0a0a0a',
-        title=dict(text=f"{title} [5M]", font=dict(color="#fff", size=12, family="Roboto Mono"), x=0.02, y=0.98),
-        xaxis_rangeslider_visible=False,
-        xaxis=dict(showgrid=True, gridcolor='#222', tickfont=dict(color='#666', size=10)),
-        yaxis=dict(showgrid=True, gridcolor='#222', tickfont=dict(color='#666', size=10), side='right')
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# G. MARKET INTERNALS & SYSTEM
-def render_internals(data):
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">MKT INTERNALS</span><span class="caps">NYSE/NAS</span></div>', unsafe_allow_html=True)
-    
-    ints = data['internals']
-    metrics = [
-        ("ADV/DEC LINE", ints['AD_LINE'], "pos"),
-        ("PUT/CALL", ints['PUT_CALL'], "neu"),
-        ("TRIN (ARMS)", ints['TRIN'], "neg" if ints['TRIN'] > 1.2 else "pos"),
-        ("VOL UP/DN", ints['VOL_UP_DN'], "pos")
-    ]
-    
-    for label, val, status in metrics:
+            <div style="display:flex; justify-content:space-between; font-size:8px; color:#666;">
+                <span>LOCKED/INSIDERS: {liq['LOCKED']}%</span><span>PUBLIC FLOAT: {liq['FLOAT']}%</span>
+            </div>
+        </div>""", unsafe_allow_html=True)
+        
+        # Flow
+        flow = engine.data['flow']
+        st.markdown('<div class="panel"><div class="panel-header"><span class="panel-title">VOLUME PRESSURE</span><span class="panel-meta">REAL FLOW</span></div>', unsafe_allow_html=True)
         st.markdown(f"""
-            <div class="mkt-row">
-                <span style="color:#888">{label}</span>
-                <span class="{status} mono">{val}</span>
+            <div style="font-size:10px; margin-bottom:5px; display:flex; justify-content:space-between;">
+                <span>BUYING PRESSURE</span><span class="pos mono">{flow['BUY']:.1f}%</span>
             </div>
-        """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-def render_econ():
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">ECON CALENDAR</span><span class="caps">TODAY</span></div>', unsafe_allow_html=True)
-    
-    events = [
-        ("08:30 ET", "CPI YOY", "3.4%", "HIGH"),
-        ("08:30 ET", "CORE CPI", "3.9%", "HIGH"),
-        ("10:30 ET", "CRUDE INV", "-2.1M", "MED"),
-        ("14:00 ET", "FOMC MINS", "--", "HIGH")
-    ]
-    
-    for time, event, act, imp in events:
-        color = "#ff3b3b" if imp == "HIGH" else "#ebae34"
-        st.markdown(f"""
-            <div class="mkt-row">
-                <span class="mono" style="color:#555">{time}</span>
-                <span style="color:#ddd">{event}</span>
-                <span class="mono" style="color:#fff">{act}</span>
+            <div class="cp-bar-bg"><div class="cp-bar-fill" style="width:{flow['BUY']}%; background:#00ff41;"></div></div>
+            <div style="font-size:10px; margin-top:10px; margin-bottom:5px; display:flex; justify-content:space-between;">
+                <span>SELLING PRESSURE</span><span class="neg mono">{flow['SELL']:.1f}%</span>
             </div>
-        """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+            <div class="cp-bar-bg"><div class="cp-bar-fill" style="width:{flow['SELL']}%; background:#ff3b3b;"></div></div>
+            <div style="margin-top:15px; border-top:1px dashed #333; padding-top:10px; text-align:center;">
+                <span style="font-size:9px; color:#666;">NET FLOW STATE</span>
+                <div style="font-size:16px; font-weight:bold; color:#fff;">{flow['NET']}</div>
+            </div>
+        </div>""", unsafe_allow_html=True)
+        
+        # Narrative
+        st.markdown('<div class="panel"><div class="panel-header"><span class="panel-title">TECHNICAL NARRATIVE</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="narrative-text">{engine.data["narrative_text"]}</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 6. LAYOUT CONSTRUCTION ---
+    with c2:
+        # Ownership
+        st.markdown('<div class="panel"><div class="panel-header"><span class="panel-title">INSTITUTIONAL HOLDERS</span><span class="panel-meta">13F / AGGREGATE</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="own-row own-header"><span>ENTITY</span><span>SHARES / %</span><span>REPORTED</span></div>', unsafe_allow_html=True)
+        for h in engine.data['top_holders']:
+            name = h.get('Holder', 'N/A')
+            shares = h.get('Shares', 0)
+            if isinstance(shares, (int, float)) and shares > 1e6: share_str = f"{shares/1e6:.1f}M"
+            else: share_str = str(shares)
+            date = h.get('Date Reported', 'N/A')
+            if isinstance(date, (pd.Timestamp, datetime)): date = date.strftime('%Y-%m-%d')
+            st.markdown(f'<div class="own-row"><span style="color:#ddd; font-weight:600;">{name}</span><span class="mono amber">{share_str}</span><span class="mono muted">{date}</span></div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Chart
+        st.markdown('<div class="panel"><div class="panel-header"><span class="panel-title">PRICE ACTION</span><span class="panel-meta">1 MONTH</span></div>', unsafe_allow_html=True)
+        fig = go.Figure(data=[go.Candlestick(x=engine.data['hist'].index, open=engine.data['hist']['Open'], high=engine.data['hist']['High'], low=engine.data['hist']['Low'], close=engine.data['hist']['Close'], increasing_line_color='#ffae00', decreasing_line_color='#333')])
+        fig.update_layout(template="plotly_dark", height=250, margin=dict(l=0,r=40,t=10,b=0), paper_bgcolor='#0b0b0b', plot_bgcolor='#0b0b0b', xaxis_rangeslider_visible=False)
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# Render API Status Pill
-render_api_status(engine.mode)
-
-# Top Ticker
-render_ticker_tape()
-
-# Main Grid [Left, Center, Right]
-col1, col2, col3 = st.columns([1, 2, 1])
-
-with col1:
-    # LEFT COLUMN: MARKETS & WATCHLIST
-    render_globals(engine.data)
-    render_internals(engine.data)
-    
-    # Watchlist Panel
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">WATCHLIST</span></div>', unsafe_allow_html=True)
-    wl = ["META", "AMD", "COIN", "PLTR"]
-    for w in wl:
-        chg = random.uniform(-3, 3)
-        c = "pos" if chg > 0 else "neg"
-        st.markdown(f'<div class="mkt-row"><span>{w}</span><span class="{c} mono">{chg:+.2f}%</span></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with col2:
-    # CENTER COLUMN: CHARTS
-    render_chart(engine.data['hist'], f"{target_ticker} PRICE ACTION")
-    # Secondary Chart (Market Proxy)
-    # Re-using hist for demo visual
-    render_chart(engine.data['hist'], "ES FUTURES (PROXY)")
-
-with col3:
-    # RIGHT COLUMN: NEWS, CRYPTO, ECON
-    render_news(engine.data['news'])
-    render_econ()
-    render_crypto(engine.data) # Added to fill blank space
-    
-    # Top Movers
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header"><span class="panel-title">TOP MOVERS</span></div>', unsafe_allow_html=True)
-    movers = [("NVDA", "+3.2%"), ("ARM", "+2.8%"), ("TSLA", "-2.4%"), ("BA", "-1.9%")]
-    for t, p in movers:
-        c = "pos" if "+" in p else "neg"
-        st.markdown(f'<div class="mkt-row"><span>{t}</span><span class="{c} mono">{p}</span></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- 7. FOOTER & AUTO-REFRESH ---
-tz_ny = pytz.timezone('US/Eastern')
-now_ny = datetime.now(tz_ny).strftime("%H:%M:%S")
-
-st.markdown(f"""
-    <div class="status-bar">
-        <span>STATUS: <span style="color:{'#00ff00' if engine.mode == 'ONLINE' else '#ff3b3b'}">{engine.mode}</span></span>
-        <span>NY TIME: {now_ny}</span>
-        <span>SOVEREIGN TERMINAL v9.1 // INSTITUTIONAL</span>
-    </div>
-""", unsafe_allow_html=True)
-
-# Auto-Refresh Script: Checks status every 60s
-# If offline, it forces a reload to attempt reconnection
-if engine.mode == "OFFLINE":
-    time.sleep(1) # Wait for UI to render
-    st.markdown(
-        """
-        <script>
-            setTimeout(function(){
-                window.location.reload();
-            }, 60000);
-        </script>
-        """, 
-        unsafe_allow_html=True
-    )
+# Footer
+now = datetime.now(pytz.timezone('US/Eastern')).strftime("%H:%M:%S")
+color = "#00ff41" if engine.mode == "LIVE UPLINK" else "#ff3b3b"
+st.markdown(f'<div class="status-bar"><span>STATUS: <span style="color:{color}">{engine.mode}</span></span><span>NY: {now} ET</span></div>', unsafe_allow_html=True)
