@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import pytz
 import random
 import time
+import streamlit.components.v1 as components
 
 # --- 1. SYSTEM CONFIGURATION ---
 st.set_page_config(layout="wide", page_title="SOVEREIGN_PRIME_VC", initial_sidebar_state="expanded")
