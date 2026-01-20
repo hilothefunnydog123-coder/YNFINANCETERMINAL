@@ -6,7 +6,7 @@ import yfinance as yf
 from twikit import Client
 from streamlit_autorefresh import st_autorefresh
 import os
-import streamlit.components.v1 as components
+import streamlit.components.v1 as components # Moved to top for Chart & Ads
 
 # ---------------- CONFIG ----------------
 st.set_page_config(
@@ -183,42 +183,51 @@ for col, k in zip(cols2, row2):
     </div>
     """, unsafe_allow_html=True)
 
-# ---------------- TRADINGVIEW CHART ----------------
-st.markdown(f"""
-<div class="section">
-    <div class="title">PRICE ACTION · {ticker}</div>
-    <div style="height:600px;">
-        <div class="tradingview-widget-container" style="height:100%;width:100%">
-            <div id="tradingview_b239c" style="height:100%;width:100%"></div>
-            <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-            <script type="text/javascript">
-            new TradingView.widget(
-            {{
-                "autosize": true,
-                "symbol": "{ticker}",
-                "interval": "15",
-                "timezone": "Etc/UTC",
-                "theme": "dark",
-                "style": "1",
-                "locale": "en",
-                "enable_publishing": false,
-                "backgroundColor": "rgba(0, 0, 0, 1)",
-                "gridColor": "rgba(30, 30, 30, 1)",
-                "hide_top_toolbar": false,
-                "save_image": false,
-                "studies": [
-                    "RSI@tv-basicstudies",
-                    "MASimple@tv-basicstudies",
-                    "Volume@tv-basicstudies"
-                ],
-                "container_id": "tradingview_b239c"
-            }}
-            );
-            </script>
-        </div>
-        </div>
+# ---------------- TRADINGVIEW CHART (FIXED) ----------------
+# We construct the HTML for the container + title, then embed the chart using components.html
+st.markdown(f'<div class="section"><div class="title">PRICE ACTION · {ticker}</div>', unsafe_allow_html=True)
+
+html_chart = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<style>body, html {{ margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: #050505; }}</style>
+</head>
+<body>
+<div class="tradingview-widget-container" style="height:100%;width:100%">
+  <div id="tradingview_widget" style="height:100%;width:100%"></div>
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script type="text/javascript">
+  new TradingView.widget(
+  {{
+  "autosize": true,
+  "symbol": "{ticker}",
+  "interval": "15",
+  "timezone": "Etc/UTC",
+  "theme": "dark",
+  "style": "1",
+  "locale": "en",
+  "enable_publishing": false,
+  "backgroundColor": "rgba(0, 0, 0, 1)",
+  "gridColor": "rgba(30, 30, 30, 1)",
+  "hide_top_toolbar": false,
+  "save_image": false,
+  "studies": [
+    "RSI@tv-basicstudies",
+    "MASimple@tv-basicstudies",
+    "Volume@tv-basicstudies"
+  ],
+  "container_id": "tradingview_widget"
+  }}
+  );
+  </script>
 </div>
-""", unsafe_allow_html=True)
+</body>
+</html>
+"""
+components.html(html_chart, height=600)
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------- X / TWITTER INTEL (10 POSTS) ----------------
 async def get_shadow_tweets(query_ticker):
@@ -275,15 +284,19 @@ except Exception as e:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------- ADS (ADSTERRA NATIVE) ----------------
-import streamlit.components.v1 as components
+st.markdown("""
+<div class="section">
+    <div class="title">SPONSORED UPLINK</div>
+    <div style="text-align:center;">
+""", unsafe_allow_html=True)
+
 components.html(
     """
     <html>
       <head>
         <meta charset="utf-8">
       </head>
-      <body style="margin:0;padding:0;background:#000000;text-align:center;">
-        <div style="color:#333;font-family:monospace;font-size:10px;margin-bottom:5px;">SPONSORED UPLINK</div>
+      <body style="margin:0;padding:0;background:#050505;text-align:center;">
         <script async="async" data-cfasync="false"
           src="https://pl28519010.effectivegatecpm.com/7f2ad764010d514cdee2fdac0b042524/invoke.js">
         </script>
@@ -293,3 +306,5 @@ components.html(
     """,
     height=100,
 )
+
+st.markdown("</div></div>", unsafe_allow_html=True)
