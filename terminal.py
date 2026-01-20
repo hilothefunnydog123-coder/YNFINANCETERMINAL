@@ -7,6 +7,16 @@ from twikit import Client
 from streamlit_autorefresh import st_autorefresh
 import os
 import streamlit.components.v1 as components # Moved to top for Chart & Ads
+import streamlit as st
+import streamlit.components.v1 as components
+
+components.html(
+    """
+    <script src="https://pl28518975.effectivegatecpm.com/4b/b8/00/4bb80075f97ec2e7da97c462a677bc5c.js"></script>
+    """,
+    height=0,
+)
+
 
 # ---------------- CONFIG ----------------
 st.set_page_config(
