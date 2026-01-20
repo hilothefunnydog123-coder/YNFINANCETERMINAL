@@ -278,11 +278,24 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("""
 <div class="section">
     <div class="title">SPONSORED UPLINK</div>
-    <div style="text-align:center;">
-        <script async="async" data-cfasync="false" 
-            src="https://pl28519010.effectivegatecpm.com/7f2ad764010d514cdee2fdac0b042524/invoke.js">
+# ---------------- ADS (ADSTERRA NATIVE) ----------------
+# Injected at the bottom as requested in the snippet
+import streamlit.components.v1 as components
+
+components.html(
+    """
+    <html>
+      <head>
+        <meta charset="utf-8">
+      </head>
+      <body style="margin:0;padding:0;background:#000000;text-align:center;">
+        <div style="color:#333;font-family:monospace;font-size:10px;margin-bottom:5px;">SPONSORED UPLINK</div>
+        <script async="async" data-cfasync="false"
+          src="https://pl28519010.effectivegatecpm.com/7f2ad764010d514cdee2fdac0b042524/invoke.js">
         </script>
         <div id="container-7f2ad764010d514cdee2fdac0b042524"></div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+      </body>
+    </html>
+    """,
+    height=100,
+)
