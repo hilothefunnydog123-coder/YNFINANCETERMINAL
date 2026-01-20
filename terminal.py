@@ -6,6 +6,7 @@ import yfinance as yf
 from twikit import Client
 from streamlit_autorefresh import st_autorefresh
 import os
+import streamlit.components.v1 as components
 
 # ---------------- CONFIG ----------------
 st.set_page_config(
@@ -14,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Auto-refresh every 60 seconds to keep data live
+# Auto-refresh every 60 seconds
 st_autorefresh(interval=60000, key="refresh")
 
 # ---------------- STYLE ----------------
@@ -52,10 +53,12 @@ st.markdown("""
         padding-bottom: 5px;
     }
     .value {
-        font-size: 24px;
+        font-size: 20px;
         font-weight: bold;
         color: #e0e0e0;
     }
+    .delta-pos { color: #00ff00; font-size: 12px; }
+    .delta-neg { color: #ff0000; font-size: 12px; }
     .small { color: #555; font-size: 10px; }
     
     /* TWEET BOX */
@@ -67,9 +70,6 @@ st.markdown("""
         color: #ccc;
     }
     .tweet b { color: #00ffff; }
-    
-    /* AD CONTAINER */
-    #ad-container { margin-top: 20px; border: 1px solid #333; padding: 10px; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -77,7 +77,7 @@ st.markdown("""
 st.markdown("""
 <div class="section">
     <span style="font-size:24px; font-weight:900; color:#fff;">YN GLOBAL SURVEILLANCE TERMINAL</span><br>
-    <span class="small" style="color:#00ffff;">LIVE DATA · REAL FEEDS · CONTINUOUS SCAN ACTIVE</span>
+    <span class="small" style="color:#00ffff;">FUTURES · COMMODITIES · FOREX · CRYPTO · INTEL</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -87,48 +87,99 @@ with st.sidebar:
     ticker = st.text_input("SYMBOL", "NVDA").upper()
     st.caption("SYSTEM: ONLINE")
 
-# ---------------- MARKET SNAPSHOT ----------------
+# ---------------- GLOBAL MARKET SCAN (The "Wake Up" Data) ----------------
 @st.cache_data(ttl=60)
-def market_snapshot():
+def fetch_global_scan():
+    # 10 Key Metrics for Pre-Market Analysis
     symbols = {
-        "SPX": "^GSPC",
-        "VIX": "^VIX",
-        "DXY": "DX-Y.NYB",
-        "BTC": "BTC-USD",
-        "ETH": "ETH-USD"
+        "ES_FUT": "ES=F",   # S&P 500 Futures
+        "NQ_FUT": "NQ=F",   # Nasdaq Futures
+        "10Y_YIELD": "^TNX", # Rates
+        "VIX": "^VIX",      # Fear
+        "DXY": "DX-Y.NYB",  # Dollar
+        "OIL": "CL=F",      # Crude
+        "GOLD": "GC=F",     # Safety
+        "EURO": "EURUSD=X", # FX
+        "BTC": "BTC-USD",   # Crypto Risk
+        "ETH": "ETH-USD"    # Crypto Beta
     }
+    
     data = {}
     try:
-        tickers = list(symbols.values())
-        df = yf.download(tickers, period="2d", progress=False)['Close']
+        # Batch download for speed
+        tickers_list = list(symbols.values())
+        df = yf.download(tickers_list, period="5d", interval="1d", progress=False)
         
-        # Handle MultiIndex
+        # Handle MultiIndex headers if they exist
         if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-            
-        # Fill NaNs
-        df = df.ffill().bfill()
-        
+            try:
+                # Try to get Close prices
+                closes = df['Close']
+            except KeyError:
+                # If structure is different, fallback to flattening
+                closes = df
+                closes.columns = closes.columns.get_level_values(1)
+        else:
+            closes = df['Close'] # Fallback for simple structure
+
+        # Process each symbol
         for k, v in symbols.items():
-            if v in df.columns:
-                price = df[v].iloc[-1]
-                data[k] = f"{price:,.2f}"
+            if v in closes.columns:
+                series = closes[v].dropna()
+                if not series.empty:
+                    curr = series.iloc[-1]
+                    prev = series.iloc[-2] if len(series) > 1 else curr
+                    
+                    # Calculate % Change
+                    chg = ((curr - prev) / prev) * 100
+                    
+                    # Formatting based on asset class
+                    if "YIELD" in k or "VIX" in k: fmt = f"{curr:.2f}"
+                    elif "BTC" in k: fmt = f"{curr:,.0f}"
+                    elif "ETH" in k: fmt = f"{curr:,.0f}"
+                    else: fmt = f"{curr:,.2f}"
+                    
+                    data[k] = {"price": fmt, "chg": chg}
+                else:
+                    data[k] = {"price": "N/A", "chg": 0.0}
             else:
-                data[k] = "ERR"
-    except:
-        data = {k: "N/A" for k in symbols}
+                data[k] = {"price": "ERR", "chg": 0.0}
+    except Exception as e:
+        # Fallback empty structure
+        data = {k: {"price": "OFFLINE", "chg": 0.0} for k in symbols}
+        
     return data
 
-snap = market_snapshot()
+scan_data = fetch_global_scan()
 
-c1, c2, c3, c4, c5 = st.columns(5)
-metrics = list(snap.items())
+# Display in 2 Rows of 5 Columns
+keys = list(scan_data.keys())
+row1 = keys[:5] # Futures/Rates/VIX/DXY
+row2 = keys[5:] # Commodities/FX/Crypto
 
-for col, (k, v) in zip([c1, c2, c3, c4, c5], metrics):
+# Render Row 1
+cols1 = st.columns(5)
+for col, k in zip(cols1, row1):
+    item = scan_data[k]
+    c_color = "#00ff00" if item['chg'] >= 0 else "#ff0000"
     col.markdown(f"""
     <div class="section" style="text-align:center; padding:10px;">
         <div style="color:#555; font-size:10px;">{k}</div>
-        <div style="font-size:18px; color:#00ffff; font-weight:bold;">{v}</div>
+        <div style="font-size:18px; color:#e0e0e0; font-weight:bold;">{item['price']}</div>
+        <div style="font-size:11px; color:{c_color};">{item['chg']:+.2f}%</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Render Row 2
+cols2 = st.columns(5)
+for col, k in zip(cols2, row2):
+    item = scan_data[k]
+    c_color = "#00ff00" if item['chg'] >= 0 else "#ff0000"
+    col.markdown(f"""
+    <div class="section" style="text-align:center; padding:10px;">
+        <div style="color:#555; font-size:10px;">{k}</div>
+        <div style="font-size:18px; color:#e0e0e0; font-weight:bold;">{item['price']}</div>
+        <div style="font-size:11px; color:{c_color};">{item['chg']:+.2f}%</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -136,7 +187,7 @@ for col, (k, v) in zip([c1, c2, c3, c4, c5], metrics):
 st.markdown(f"""
 <div class="section">
     <div class="title">PRICE ACTION · {ticker}</div>
-    <div style="height:500px;">
+    <div style="height:600px;">
         <div class="tradingview-widget-container" style="height:100%;width:100%">
             <div id="tradingview_b239c" style="height:100%;width:100%"></div>
             <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
@@ -145,7 +196,7 @@ st.markdown(f"""
             {{
                 "autosize": true,
                 "symbol": "{ticker}",
-                "interval": "5",
+                "interval": "15",
                 "timezone": "Etc/UTC",
                 "theme": "dark",
                 "style": "1",
@@ -155,6 +206,11 @@ st.markdown(f"""
                 "gridColor": "rgba(30, 30, 30, 1)",
                 "hide_top_toolbar": false,
                 "save_image": false,
+                "studies": [
+                    "RSI@tv-basicstudies",
+                    "MASimple@tv-basicstudies",
+                    "Volume@tv-basicstudies"
+                ],
                 "container_id": "tradingview_b239c"
             }}
             );
@@ -164,12 +220,10 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ---------------- X / TWITTER INTEL ----------------
+# ---------------- X / TWITTER INTEL (10 POSTS) ----------------
 async def get_shadow_tweets(query_ticker):
-    # Initialize Client
     client = Client("en-US")
     
-    # Check for cookies file
     if not os.path.exists("cookies.json"):
         return [{"user": {"name": "SYSTEM", "screen_name": "Admin"}, "text": "COOKIES.JSON MISSING - UPLOAD AUTH FILE"}]
         
@@ -177,7 +231,6 @@ async def get_shadow_tweets(query_ticker):
         with open("cookies.json", "r") as f:
             raw = json.load(f)
         
-        # Convert list format to dictionary if necessary
         if isinstance(raw, list):
             cookies = {c["name"]: c["value"] for c in raw}
         else:
@@ -185,27 +238,26 @@ async def get_shadow_tweets(query_ticker):
             
         client.set_cookies(cookies)
         
-        # Search Query: Cashtag + Verified filter for quality
-        tweets = await client.search_tweet(f"${query_ticker}", "Latest", count=5)
+        # INCREASED COUNT TO 10
+        tweets = await client.search_tweet(f"${query_ticker} filter:verified", "Latest", count=10)
         return tweets
     except Exception as e:
         return [{"user": {"name": "ERROR", "screen_name": "System"}, "text": f"AUTH FAILURE: {str(e)}"}]
 
-st.markdown('<div class="section"><div class="title">𝕏 INTEL FEED (SHADOW)</div>', unsafe_allow_html=True)
+st.markdown('<div class="section"><div class="title">𝕏 INTEL FEED (SHADOW MODE)</div>', unsafe_allow_html=True)
 
-# Run Async Loop safely in Streamlit
 try:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     tweets = loop.run_until_complete(get_shadow_tweets(ticker))
     
+    # Display 10 Tweets
     for t in tweets:
-        # Handle both Twikit objects and error dicts
-        if isinstance(t, dict):
+        if isinstance(t, dict): # Handle Error Dict
             name = t['user']['name']
             handle = t['user']['screen_name']
             text = t['text']
-        else:
+        else: # Handle Twikit Object
             name = t.user.name
             handle = t.user.screen_name
             text = t.text
@@ -223,23 +275,14 @@ except Exception as e:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------- ADS (ADSTERRA NATIVE) ----------------
-# Injected at the bottom as requested in the snippet
-import streamlit.components.v1 as components
-
-components.html(
-    """
-    <html>
-      <head>
-        <meta charset="utf-8">
-      </head>
-      <body style="margin:0;padding:0;background:#000000;text-align:center;">
-        <div style="color:#333;font-family:monospace;font-size:10px;margin-bottom:5px;">SPONSORED UPLINK</div>
-        <script async="async" data-cfasync="false"
-          src="https://pl28519010.effectivegatecpm.com/7f2ad764010d514cdee2fdac0b042524/invoke.js">
+st.markdown("""
+<div class="section">
+    <div class="title">SPONSORED UPLINK</div>
+    <div style="text-align:center;">
+        <script async="async" data-cfasync="false" 
+            src="https://pl28519010.effectivegatecpm.com/7f2ad764010d514cdee2fdac0b042524/invoke.js">
         </script>
         <div id="container-7f2ad764010d514cdee2fdac0b042524"></div>
-      </body>
-    </html>
-    """,
-    height=100,
-)
+    </div>
+</div>
+""", unsafe_allow_html=True)
