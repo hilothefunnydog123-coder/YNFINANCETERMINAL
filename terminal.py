@@ -275,13 +275,7 @@ except Exception as e:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------- ADS (ADSTERRA NATIVE) ----------------
-st.markdown("""
-<div class="section">
-    <div class="title">SPONSORED UPLINK</div>
-# ---------------- ADS (ADSTERRA NATIVE) ----------------
-# Injected at the bottom as requested in the snippet
 import streamlit.components.v1 as components
-
 components.html(
     """
     <html>
@@ -297,4 +291,5 @@ components.html(
       </body>
     </html>
     """,
-    height=100,)
+    height=100,
+)
