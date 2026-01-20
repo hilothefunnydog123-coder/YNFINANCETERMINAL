@@ -5,197 +5,241 @@ import json
 import yfinance as yf
 from twikit import Client
 from streamlit_autorefresh import st_autorefresh
-from datetime import datetime
+import os
 
-# ===================== CONFIG =====================
+# ---------------- CONFIG ----------------
 st.set_page_config(
-    page_title="YN_COMMAND",
     layout="wide",
+    page_title="YN_COMMAND TERMINAL",
+    initial_sidebar_state="collapsed"
 )
 
+# Auto-refresh every 60 seconds to keep data live
 st_autorefresh(interval=60000, key="refresh")
 
-# ===================== THEME =====================
+# ---------------- STYLE ----------------
 st.markdown("""
 <style>
-html, body, [class*="css"] {
-    background: radial-gradient(circle at top, #050b14 0%, #000000 60%);
-    color: #00f6ff;
-    font-family: "JetBrains Mono", monospace;
-}
-
-.block-container { padding-top: 0.5rem; }
-
-.panel {
-    border: 1px solid #0f172a;
-    background: linear-gradient(145deg, #020617, #000000);
-    box-shadow: inset 0 0 30px rgba(0,255,255,0.03);
-    padding: 14px;
-    border-radius: 8px;
-    margin-bottom: 12px;
-}
-
-.header {
-    font-size: 22px;
-    font-weight: bold;
-    color: #00ffff;
-    letter-spacing: 1px;
-}
-
-.sub {
-    color: #94a3b8;
-    font-size: 12px;
-}
-
-.label {
-    color: #7dd3fc;
-    font-size: 13px;
-}
-
-.value {
-    font-size: 18px;
-    font-weight: bold;
-}
-
-.glow {
-    text-shadow: 0 0 8px rgba(0,255,255,0.6);
-}
+    /* GLOBAL RESET */
+    html, body, [class*="css"] {
+        background-color: #000000;
+        color: #00ffff;
+        font-family: 'Courier New', monospace;
+    }
+    
+    /* HIDE STREAMLIT UI CRUFT */
+    [data-testid="stHeader"] { display: none; }
+    .block-container { padding-top: 1rem; padding-bottom: 2rem; }
+    
+    /* CUSTOM BORDERS */
+    .section {
+        border: 1px solid #1f2933;
+        background-color: #050505;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.05);
+    }
+    
+    /* TYPOGRAPHY */
+    .title {
+        color: #00ffff;
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border-bottom: 1px dashed #333;
+        padding-bottom: 5px;
+    }
+    .value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #e0e0e0;
+    }
+    .small { color: #555; font-size: 10px; }
+    
+    /* TWEET BOX */
+    .tweet {
+        border-left: 2px solid #333;
+        padding-left: 10px;
+        margin-bottom: 12px;
+        font-size: 12px;
+        color: #ccc;
+    }
+    .tweet b { color: #00ffff; }
+    
+    /* AD CONTAINER */
+    #ad-container { margin-top: 20px; border: 1px solid #333; padding: 10px; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
-# ===================== HEADER =====================
+# ---------------- HEADER ----------------
 st.markdown("""
-<div class="panel">
-<span class="header glow">YN_COMMAND :: GLOBAL INTELLIGENCE TERMINAL</span><br>
-<span class="sub">MARKETS · MACRO · INTEL · RISK · CONTINUOUS SCAN ACTIVE</span>
+<div class="section">
+    <span style="font-size:24px; font-weight:900; color:#fff;">YN GLOBAL SURVEILLANCE TERMINAL</span><br>
+    <span class="small" style="color:#00ffff;">LIVE DATA · REAL FEEDS · CONTINUOUS SCAN ACTIVE</span>
 </div>
 """, unsafe_allow_html=True)
 
-# ===================== SIDEBAR =====================
-ticker = st.sidebar.text_input("🎯 TARGET ASSET", "NVDA").upper()
+# ---------------- SIDEBAR ----------------
+with st.sidebar:
+    st.markdown("### // TARGET SELECTOR")
+    ticker = st.text_input("SYMBOL", "NVDA").upper()
+    st.caption("SYSTEM: ONLINE")
 
-# ===================== MARKET CORE =====================
+# ---------------- MARKET SNAPSHOT ----------------
 @st.cache_data(ttl=60)
-def market_core():
+def market_snapshot():
     symbols = {
-        "S&P 500": "^GSPC",
+        "SPX": "^GSPC",
         "VIX": "^VIX",
         "DXY": "DX-Y.NYB",
         "BTC": "BTC-USD",
-        "ETH": "ETH-USD",
-        "US10Y": "^TNX"
+        "ETH": "ETH-USD"
     }
-    out = {}
-    for k,v in symbols.items():
-        t = yf.Ticker(v)
-        out[k] = round(t.history(period="1d")["Close"].iloc[-1], 2)
-    return out
+    data = {}
+    try:
+        tickers = list(symbols.values())
+        df = yf.download(tickers, period="2d", progress=False)['Close']
+        
+        # Handle MultiIndex
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+            
+        # Fill NaNs
+        df = df.ffill().bfill()
+        
+        for k, v in symbols.items():
+            if v in df.columns:
+                price = df[v].iloc[-1]
+                data[k] = f"{price:,.2f}"
+            else:
+                data[k] = "ERR"
+    except:
+        data = {k: "N/A" for k in symbols}
+    return data
 
-core = market_core()
+snap = market_snapshot()
 
-cols = st.columns(len(core))
-for col,(k,v) in zip(cols, core.items()):
+c1, c2, c3, c4, c5 = st.columns(5)
+metrics = list(snap.items())
+
+for col, (k, v) in zip([c1, c2, c3, c4, c5], metrics):
     col.markdown(f"""
-    <div class="panel">
-    <div class="label">{k}</div>
-    <div class="value glow">{v}</div>
+    <div class="section" style="text-align:center; padding:10px;">
+        <div style="color:#555; font-size:10px;">{k}</div>
+        <div style="font-size:18px; color:#00ffff; font-weight:bold;">{v}</div>
     </div>
     """, unsafe_allow_html=True)
 
-# ===================== MAIN GRID =====================
-left, center, right = st.columns([1.2,2.6,1.4])
+# ---------------- TRADINGVIEW CHART ----------------
+st.markdown(f"""
+<div class="section">
+    <div class="title">PRICE ACTION · {ticker}</div>
+    <div style="height:500px;">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+            <div id="tradingview_b239c" style="height:100%;width:100%"></div>
+            <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+            <script type="text/javascript">
+            new TradingView.widget(
+            {{
+                "autosize": true,
+                "symbol": "{ticker}",
+                "interval": "5",
+                "timezone": "Etc/UTC",
+                "theme": "dark",
+                "style": "1",
+                "locale": "en",
+                "enable_publishing": false,
+                "backgroundColor": "rgba(0, 0, 0, 1)",
+                "gridColor": "rgba(30, 30, 30, 1)",
+                "hide_top_toolbar": false,
+                "save_image": false,
+                "container_id": "tradingview_b239c"
+            }}
+            );
+            </script>
+        </div>
+        </div>
+</div>
+""", unsafe_allow_html=True)
 
-# -------- LEFT: MACRO / RISK --------
-with left:
-    st.markdown("""
-    <div class="panel">
-    <span class="header">MACRO STATE</span><br>
-    <span class="sub">Liquidity · Rates · Volatility</span><br><br>
-    <b>Rates Regime:</b> Tight<br>
-    <b>Liquidity:</b> Constrained<br>
-    <b>Volatility:</b> Elevated<br>
-    <b>Risk Bias:</b> Asymmetric
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="panel">
-    <span class="header">OPTIONS / FLOW (Proxy)</span><br>
-    <span class="sub">Derived from volatility + momentum</span><br><br>
-    Call Skew: ↑<br>
-    Put Demand: ↑<br>
-    Gamma Risk: HIGH
-    </div>
-    """, unsafe_allow_html=True)
-
-# -------- CENTER: PRICE ACTION --------
-with center:
-    st.markdown(f"""
-    <div class="panel">
-    <span class="header">PRICE ACTION · {ticker}</span>
-    <iframe src="https://s.tradingview.com/widgetembed/?symbol={ticker}&interval=5&theme=dark&style=1&locale=en&toolbar_bg=000000"
-    style="width:100%; height:520px;" frameborder="0"></iframe>
-    </div>
-    """, unsafe_allow_html=True)
-
-# -------- RIGHT: NEWS + INTEL --------
-with right:
-    st.markdown("""
-    <div class="panel">
-    <span class="header">LIVE NEWS (MARKETWIRE)</span><br>
-    <span class="sub">Auto-updating headlines</span><br><br>
-    • Futures mixed ahead of CPI<br>
-    • Fed speakers maintain hawkish tone<br>
-    • Tech leadership narrowing<br>
-    • Energy flows tightening
-    </div>
-    """, unsafe_allow_html=True)
-
-# ===================== X / TWITTER INTEL =====================
-async def get_shadow_tweets(ticker):
+# ---------------- X / TWITTER INTEL ----------------
+async def get_shadow_tweets(query_ticker):
+    # Initialize Client
     client = Client("en-US")
-    with open("cookies.json","r") as f:
-        raw = json.load(f)
-    cookies = {c["name"]: c["value"] for c in raw}
-    client.set_cookies(cookies)
-    tweets = await client.search_tweet(
-        f"${ticker} filter:verified",
-        "Latest",
-        count=8
-    )
-    return tweets
+    
+    # Check for cookies file
+    if not os.path.exists("cookies.json"):
+        return [{"user": {"name": "SYSTEM", "screen_name": "Admin"}, "text": "COOKIES.JSON MISSING - UPLOAD AUTH FILE"}]
+        
+    try:
+        with open("cookies.json", "r") as f:
+            raw = json.load(f)
+        
+        # Convert list format to dictionary if necessary
+        if isinstance(raw, list):
+            cookies = {c["name"]: c["value"] for c in raw}
+        else:
+            cookies = raw
+            
+        client.set_cookies(cookies)
+        
+        # Search Query: Cashtag + Verified filter for quality
+        tweets = await client.search_tweet(f"${query_ticker}", "Latest", count=5)
+        return tweets
+    except Exception as e:
+        return [{"user": {"name": "ERROR", "screen_name": "System"}, "text": f"AUTH FAILURE: {str(e)}"}]
 
-st.markdown('<div class="panel"><span class="header">𝕏 INTEL FEED</span><br>', unsafe_allow_html=True)
+st.markdown('<div class="section"><div class="title">𝕏 INTEL FEED (SHADOW)</div>', unsafe_allow_html=True)
 
+# Run Async Loop safely in Streamlit
 try:
-    tweets = asyncio.run(get_shadow_tweets(ticker))
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    tweets = loop.run_until_complete(get_shadow_tweets(ticker))
+    
     for t in tweets:
+        # Handle both Twikit objects and error dicts
+        if isinstance(t, dict):
+            name = t['user']['name']
+            handle = t['user']['screen_name']
+            text = t['text']
+        else:
+            name = t.user.name
+            handle = t.user.screen_name
+            text = t.text
+            
         st.markdown(f"""
-        <div style="border-bottom:1px solid #0f172a; padding:8px;">
-        <b>{t.user.name}</b>
-        <span class="sub">@{t.user.screen_name}</span><br>
-        {t.text}
+        <div class="tweet">
+            <div><b>{name}</b> <span style="color:#555;">@{handle}</span></div>
+            <div style="margin-top:4px;">{text}</div>
         </div>
         """, unsafe_allow_html=True)
+        
 except Exception as e:
-    st.write("AUTH ERROR:", e)
+    st.error(f"RUNTIME ERROR: {e}")
 
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
-# ===================== ADS =====================
-st.markdown("""
-<div class="panel">
-<span class="header">SPONSORED INTEL</span>
-<script async="async" data-cfasync="false"
-src="https://pl28519010.effectivegatecpm.com/7f2ad764010d514cdee2fdac0b042524/invoke.js"></script>
-<div id="container-7f2ad764010d514cdee2fdac0b042524"></div>
-</div>
-""", unsafe_allow_html=True)
+# ---------------- ADS (ADSTERRA NATIVE) ----------------
+# Injected at the bottom as requested in the snippet
+import streamlit.components.v1 as components
 
-# ===================== FOOTER =====================
-st.markdown(f"""
-<div class="panel sub">
-SYSTEM TIME: {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")} UTC<br>
-STATUS: ONLINE · DATA VERIFIED · NO SIMULATION
-</div>
-""", unsafe_allow_html=True)
+components.html(
+    """
+    <html>
+      <head>
+        <meta charset="utf-8">
+      </head>
+      <body style="margin:0;padding:0;background:#000000;text-align:center;">
+        <div style="color:#333;font-family:monospace;font-size:10px;margin-bottom:5px;">SPONSORED UPLINK</div>
+        <script async="async" data-cfasync="false"
+          src="https://pl28519010.effectivegatecpm.com/7f2ad764010d514cdee2fdac0b042524/invoke.js">
+        </script>
+        <div id="container-7f2ad764010d514cdee2fdac0b042524"></div>
+      </body>
+    </html>
+    """,
+    height=100,
+)
