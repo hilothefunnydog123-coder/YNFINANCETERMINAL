@@ -1,275 +1,126 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from datetime import datetime
-import pytz
-import time
+import asyncio
+import json
+import yfinance as yf
+from twikit import Client
+from streamlit_autorefresh import st_autorefresh
 
-# =========================================================
-# 1. CONFIG
-# =========================================================
+# ---------------- CONFIG ----------------
 st.set_page_config(
     layout="wide",
-    page_title="SOVEREIGN | MARKET INTELLIGENCE",
-    initial_sidebar_state="collapsed"
+    page_title="YN_COMMAND TERMINAL",
 )
 
-# =========================================================
-# 2. JARVIS / BLOOMBERG CSS
-# =========================================================
+st_autorefresh(interval=60000, key="refresh")
+
+# ---------------- STYLE ----------------
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap');
-
-.stApp {
-    background:#000;
-    color:#cfcfcf;
-    font-family:'Inter', sans-serif;
+html, body, [class*="css"] {
+    background-color: #000000;
+    color: #00ffff;
+    font-family: monospace;
 }
-[data-testid="stHeader"] { display:none; }
-.block-container { padding:1rem 1.5rem; }
-
-.mono { font-family:'Roboto Mono', monospace; }
-.pos { color:#00ffcc; }
-.neg { color:#ff4d4d; }
-.warn { color:#ffcc00; }
-.cyan { color:#00f0ff; }
-
-.panel {
-    background:#080808;
-    border:1px solid #222;
-    padding:14px;
-    height:100%;
+.block-container { padding-top: 1rem; }
+.section {
+    border: 1px solid #1f2933;
+    padding: 12px;
+    margin-bottom: 12px;
 }
-
-.panel-header {
-    display:flex;
-    justify-content:space-between;
-    border-bottom:1px solid #333;
-    padding-bottom:6px;
-    margin-bottom:10px;
+.title {
+    color:#00ffff;
+    font-size:18px;
+    font-weight:bold;
+    margin-bottom:6px;
 }
-
-.panel-title {
-    font-size:11px;
-    font-weight:900;
-    letter-spacing:1px;
-    text-transform:uppercase;
-    color:#fff;
-}
-
-.regime-strip {
-    display:grid;
-    grid-template-columns:repeat(5,1fr);
-    border:1px solid #222;
-    margin-bottom:10px;
-}
-
-.regime-cell {
-    padding:8px;
-    text-align:center;
-    border-right:1px solid #222;
-}
-.regime-cell:last-child { border-right:none; }
-
-.regime-label {
-    font-size:9px;
-    color:#666;
-    letter-spacing:1px;
-}
-.regime-val {
-    font-size:13px;
-    font-weight:900;
-    font-family:'Roboto Mono';
-}
-
-.tweet {
-    border-left:2px solid #333;
-    padding:8px;
-    margin-bottom:8px;
-    background:#000;
-}
-.tweet-handle { font-size:11px; font-weight:bold; color:#fff; }
-.tweet-time { font-size:9px; color:#555; }
-.tweet-body { font-size:11px; color:#ccc; }
-
-.delta-row {
-    display:flex;
-    justify-content:space-between;
-    padding:6px 0;
-    border-bottom:1px dashed #222;
-    font-size:11px;
-}
-
-.footer {
-    position:fixed;
-    bottom:0;
-    left:0;
-    width:100%;
-    background:#000;
-    border-top:1px solid #222;
-    padding:3px 12px;
-    font-family:'Roboto Mono';
-    font-size:9px;
-    color:#666;
-}
+.small { color:#9ca3af; font-size:12px; }
 </style>
 """, unsafe_allow_html=True)
 
-# =========================================================
-# 3. SAFE HELPERS
-# =========================================================
-def safe_last(series, fallback=0):
-    try:
-        val = series.iloc[-1]
-        return fallback if pd.isna(val) else val
-    except:
-        return fallback
-
-# =========================================================
-# 4. DATA (CACHED)
-# =========================================================
-@st.cache_data(ttl=300)
-def fetch_prices():
-    tickers = ["^GSPC","^VIX","^TNX","NVDA"]
-    df = yf.download(tickers, period="2mo", interval="1d", progress=False, auto_adjust=True)
-    if isinstance(df.columns, pd.MultiIndex):
-        df = df["Close"]
-    return df.ffill().bfill()
-
-@st.cache_data(ttl=300)
-def fetch_intraday():
-    df = yf.download("NVDA", period="5d", interval="15m", progress=False, auto_adjust=True)
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    return df.ffill().bfill()
-
-@st.cache_data(ttl=300)
-def fetch_news():
-    try:
-        return yf.Ticker("QQQ").news[:6]
-    except:
-        return []
-
-# =========================================================
-# 5. ENGINE
-# =========================================================
-prices = fetch_prices()
-intraday = fetch_intraday()
-news = fetch_news()
-
-vix = safe_last(prices.get("^VIX", pd.Series()))
-tnx = safe_last(prices.get("^TNX", pd.Series()))
-nvda = safe_last(prices.get("NVDA", pd.Series()))
-
-regime = {
-    "RISK": "RISK-ON" if vix < 20 else "RISK-OFF",
-    "VOL": f"{vix:.2f}",
-    "LIQ": "TIGHT" if tnx > 4.2 else "NEUTRAL",
-    "RATES": f"{tnx:.2f}%",
-    "ALIGN": "MIXED"
-}
-
-# =========================================================
-# 6. RENDER REGIME
-# =========================================================
+# ---------------- HEADER ----------------
 st.markdown("""
-<div class="regime-strip">
-""" + "".join([
-    f"""
-    <div class="regime-cell">
-        <div class="regime-label">{k}</div>
-        <div class="regime-val {'pos' if 'ON' in v else ''}">{v}</div>
-    </div>
-    """ for k,v in regime.items()
-]) + "</div>", unsafe_allow_html=True)
+<div class="section">
+<span class="title">YN GLOBAL SURVEILLANCE TERMINAL</span><br>
+<span class="small">LIVE DATA · REAL FEEDS · CONTINUOUS SCAN ACTIVE</span>
+</div>
+""", unsafe_allow_html=True)
 
-st.markdown(
-    "<div class='cyan mono' style='font-size:10px;margin-bottom:10px;'>"
-    "AI SITUATION AWARENESS ONLINE — CONTINUOUS SCAN ACTIVE"
-    "</div>",
-    unsafe_allow_html=True
-)
+# ---------------- SIDEBAR ----------------
+ticker = st.sidebar.text_input("TARGET TICKER", "NVDA").upper()
 
-# =========================================================
-# 7. LAYOUT
-# =========================================================
-c1, c2, c3 = st.columns([1,1.2,1])
+# ---------------- MARKET SNAPSHOT ----------------
+@st.cache_data(ttl=60)
+def market_snapshot():
+    symbols = {
+        "SPX": "^GSPC",
+        "VIX": "^VIX",
+        "DXY": "DX-Y.NYB",
+        "BTC": "BTC-USD",
+        "ETH": "ETH-USD"
+    }
+    data = {}
+    for k,v in symbols.items():
+        t = yf.Ticker(v)
+        data[k] = round(t.history(period="1d")["Close"].iloc[-1], 2)
+    return data
 
-# ----------------- RISK & DELTA -----------------
-with c1:
-    st.markdown("<div class='panel'>", unsafe_allow_html=True)
-    st.markdown("<div class='panel-header'><span class='panel-title'>RISK & DELTA</span></div>", unsafe_allow_html=True)
+snap = market_snapshot()
 
-    st.markdown(f"<div class='delta-row'><span>US10Y</span><span>{tnx:.2f}%</span></div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='delta-row'><span>VIX</span><span>{vix:.2f}</span></div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='delta-row'><span>NVDA</span><span>${nvda:.2f}</span></div>", unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# ----------------- CHART -----------------
-with c2:
-    st.markdown("<div class='panel'>", unsafe_allow_html=True)
-    st.markdown("<div class='panel-header'><span class='panel-title'>PRICE ACTION</span><span class='panel-title cyan'>NVDA</span></div>", unsafe_allow_html=True)
-
-    if not intraday.empty:
-        fig = go.Figure(go.Candlestick(
-            x=intraday.index,
-            open=intraday["Open"],
-            high=intraday["High"],
-            low=intraday["Low"],
-            close=intraday["Close"],
-            increasing_line_color="#00ffcc",
-            decreasing_line_color="#ff4d4d"
-        ))
-        fig.update_layout(
-            template="plotly_dark",
-            height=260,
-            paper_bgcolor="#080808",
-            plot_bgcolor="#080808",
-            xaxis_rangeslider_visible=False,
-            yaxis=dict(side="right", gridcolor="#222")
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.markdown("<div class='mono warn'>DATA STALE — USING LAST SNAPSHOT</div>", unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# ----------------- INTEL FEED -----------------
-with c3:
-    st.markdown("<div class='panel'>", unsafe_allow_html=True)
-    st.markdown("<div class='panel-header'><span class='panel-title'>INTEL FEED</span></div>", unsafe_allow_html=True)
-
-    if news:
-        for n in news:
-            st.markdown(f"""
-            <div class='tweet'>
-                <div class='tweet-handle'>@MarketWire <span class='tweet-time'>LIVE</span></div>
-                <div class='tweet-body'>{n.get("title","Market Update")}</div>
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.markdown("<div class='tweet'><div class='tweet-body'>NO ACTIVE NEWS — MONITORING FLOWS</div></div>", unsafe_allow_html=True)
-
-    # --------- ADS (NATIVE BANNER) ---------
-    st.markdown("""
-    <div style="margin-top:10px;">
-        <script async data-cfasync="false" src="https://pl28519010.effectivegatecpm.com/7f2ad764010d514cdee2fdac0b042524/invoke.js"></script>
-        <div id="container-7f2ad764010d514cdee2fdac0b042524"></div>
+c1,c2,c3,c4,c5 = st.columns(5)
+for col,(k,v) in zip([c1,c2,c3,c4,c5], snap.items()):
+    col.markdown(f"""
+    <div class="section">
+    <div class="title">{k}</div>
+    <div>{v}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# =========================================================
-# 8. FOOTER
-# =========================================================
-now = datetime.now(pytz.timezone("US/Eastern")).strftime("%H:%M:%S")
+# ---------------- TRADINGVIEW CHART ----------------
 st.markdown(f"""
-<div class="footer">
-STATUS: SECURE UPLINK | CACHE ACTIVE | {now} ET
+<div class="section">
+<div class="title">PRICE ACTION · {ticker}</div>
+<iframe src="https://s.tradingview.com/widgetembed/?symbol={ticker}&interval=5&theme=dark&style=1&locale=en&toolbar_bg=000000"
+style="width:100%; height:500px;" frameborder="0"></iframe>
+</div>
+""", unsafe_allow_html=True)
+
+# ---------------- X / TWITTER INTEL ----------------
+async def get_shadow_tweets(ticker):
+    client = Client("en-US")
+    with open("cookies.json","r") as f:
+        raw = json.load(f)
+    cookies = {c["name"]: c["value"] for c in raw}
+    client.set_cookies(cookies)
+    tweets = await client.search_tweet(
+        f"${ticker} filter:verified",
+        "Latest",
+        count=8
+    )
+    return tweets
+
+st.markdown('<div class="section"><div class="title">𝕏 INTEL FEED</div>', unsafe_allow_html=True)
+
+try:
+    tweets = asyncio.run(get_shadow_tweets(ticker))
+    for t in tweets:
+        st.markdown(f"""
+        <div style="border-bottom:1px solid #1f2933; padding:8px 0;">
+        <b>{t.user.name}</b> @{t.user.screen_name}<br>
+        {t.text}
+        </div>
+        """, unsafe_allow_html=True)
+except Exception as e:
+    st.write("AUTH ERROR:", e)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ---------------- ADS (ADSTERRA NATIVE) ----------------
+st.markdown("""
+<div class="section">
+<div class="title">SPONSORED</div>
+<script async="async" data-cfasync="false"
+src="https://pl28519010.effectivegatecpm.com/7f2ad764010d514cdee2fdac0b042524/invoke.js"></script>
+<div id="container-7f2ad764010d514cdee2fdac0b042524"></div>
 </div>
 """, unsafe_allow_html=True)
