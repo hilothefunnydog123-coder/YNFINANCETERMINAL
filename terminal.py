@@ -304,7 +304,7 @@ components.html(
       </body>
     </html>
     """,
-    height=400,
+    height=523,
 )
 
 st.markdown("</div></div>", unsafe_allow_html=True)
