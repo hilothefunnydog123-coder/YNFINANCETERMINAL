@@ -268,6 +268,66 @@ components.html(
     height=320,
 )
 
+# ---------------- S&P 500 ALPHA RANKER (ADDITION) ----------------
+st.markdown('<div class="section"><div class="title">S&P 500 ALPHA RANKER // TOP 25 OPPORTUNITIES</div>', unsafe_allow_html=True)
+
+@st.cache_data(ttl=300)
+def get_alpha_ranks():
+    # S&P 500 High-Velocity Proxy List (Top 25 for Performance/Hype)
+    sp500_leads = [
+        "NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "META", "GOOGL", "AMD", "NFLX", "PLTR",
+        "SMCI", "AVGO", "COST", "ORCL", "BRK-B", "JPM", "UNH", "LLY", "V", "MA",
+        "HD", "PG", "MRK", "ABBV", "CRM"
+    ]
+    
+    # Fetch real-time metrics
+    data = yf.download(sp500_leads, period="5d", interval="1d", progress=False)['Close']
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.get_level_values(1)
+    
+    ranks = []
+    for sym in sp500_leads:
+        try:
+            # Volatility (High-Low range / Average)
+            vol = data[sym].pct_change().std() * 100
+            # Trend (Price vs 5-day mean)
+            trend = ((data[sym].iloc[-1] / data[sym].mean()) - 1) * 100
+            # Hype Score (Weighted Vol + Trend + Absolute Chg)
+            hype_score = (vol * 0.4) + (abs(trend) * 0.6)
+            
+            ranks.append({
+                "SYMBOL": sym,
+                "HYPE": round(hype_score, 2),
+                "VOLATILITY": f"{vol:.2f}%",
+                "STATUS": "ACCUMULATING" if trend > 0 else "DISTRIBUTING"
+            })
+        except: continue
+        
+    return sorted(ranks, key=lambda x: x['HYPE'], reverse=True)[:25]
+
+alpha_data = get_alpha_ranks()
+
+# Render as High-Visual Ranker
+r1, r2, r3, r4, r5 = st.columns(5)
+cols = [r1, r2, r3, r4, r5]
+
+for i, stock in enumerate(alpha_data):
+    target_col = cols[i % 5]
+    border_color = "#00ff41" if "ACCUM" in stock['STATUS'] else "#ff3b3b"
+    
+    target_col.markdown(f"""
+        <div style="border: 1px solid #1f2933; border-left: 4px solid {border_color}; background: #080808; padding: 10px; margin-bottom: 10px;">
+            <div style="display:flex; justify-content:space-between;">
+                <span style="font-weight:900; color:#fff;">#{i+1} {stock['SYMBOL']}</span>
+                <span style="font-size:10px; color:#555;">SCORE: {stock['HYPE']}</span>
+            </div>
+            <div style="font-size:11px; color:#00ffff; margin-top:5px;">VOL: {stock['VOLATILITY']}</div>
+            <div style="font-size:9px; color:{border_color}; text-transform:uppercase; letter-spacing:1px;">{stock['STATUS']}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
 
 # ---------------- X / TWITTER INTEL (10 POSTS) ----------------
 async def get_shadow_tweets(query_ticker):
