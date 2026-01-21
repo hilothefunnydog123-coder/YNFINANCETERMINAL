@@ -9,7 +9,16 @@ import os
 import streamlit.components.v1 as components # Moved to top for Chart & Ads
 import streamlit as st
 import streamlit.components.v1 as components
-
+<script>
+  atOptions = {
+    'key' : 'b70ce887becced7c033579163064d6b4',
+    'format' : 'iframe',
+    'height' : 60,
+    'width' : 468,
+    'params' : {}
+  };
+</script>
+<script src="https://www.highperformanceformat.com/b70ce887becced7c033579163064d6b4/invoke.js"></script>
 components.html(
     """
     <script src="https://pl28518975.effectivegatecpm.com/4b/b8/00/4bb80075f97ec2e7da97c462a677bc5c.js"></script>
