@@ -250,6 +250,24 @@ html_chart = f"""
 components.html(html_chart, height=600)
 
 st.markdown('</div>', unsafe_allow_html=True)
+components.html(
+    """
+    <div style="display:flex; justify-content:center; margin-top:10px;">
+        <script>
+          atOptions = {
+            'key' : '914d023d74077cbb3c33063328e01c7f',
+            'format' : 'iframe',
+            'height' : 300,
+            'width' : 160,
+            'params' : {}
+          };
+        </script>
+        <script src="https://www.highperformanceformat.com/914d023d74077cbb3c33063328e01c7f/invoke.js"></script>
+    </div>
+    """,
+    height=320,
+)
+
 
 # ---------------- X / TWITTER INTEL (10 POSTS) ----------------
 async def get_shadow_tweets(query_ticker):
