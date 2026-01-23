@@ -7,8 +7,7 @@ from twikit import Client
 from streamlit_autorefresh import st_autorefresh
 import os
 import streamlit.components.v1 as components
-import random
-from datetime import datetime
+import requests # Needed for Stocktwits Fallback
 
 # ---------------- CONFIG ----------------
 st.set_page_config(
@@ -20,7 +19,7 @@ st.set_page_config(
 # Auto-refresh every 60 seconds
 st_autorefresh(interval=60000, key="refresh")
 
-# ---------------- HYPER-VISUAL CSS ----------------
+# ---------------- STYLE ----------------
 st.markdown("""
 <style>
     /* CORE THEME */
@@ -30,11 +29,10 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
     
-    /* HIDE STREAMLIT UI */
     [data-testid="stHeader"] { display: none; }
     .block-container { padding-top: 0rem; padding-bottom: 5rem; padding-left: 1rem; padding-right: 1rem; }
     
-    /* NEON BORDERS & GLOWS */
+    /* SECTIONS */
     .section {
         background: #050505;
         border: 1px solid #222;
@@ -42,14 +40,9 @@ st.markdown("""
         padding: 15px;
         margin-bottom: 20px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-        transition: all 0.3s ease;
-    }
-    .section:hover {
-        border-color: #00ffff;
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
     }
     
-    /* TYPOGRAPHY */
+    /* TITLES */
     .title-glitch {
         font-family: 'Courier New', monospace;
         font-weight: 900;
@@ -62,7 +55,7 @@ st.markdown("""
         padding-left: 10px;
     }
     
-    /* METRIC CARDS */
+    /* METRICS */
     .metric-card {
         background: linear-gradient(145deg, #0a0a0a, #0f0f0f);
         border: 1px solid #333;
@@ -70,54 +63,40 @@ st.markdown("""
         padding: 10px;
         text-align: center;
     }
-    .metric-label { font-size: 10px; color: #666; letter-spacing: 1px; }
     .metric-val { font-size: 18px; font-weight: bold; color: #fff; margin: 5px 0; }
-    .pos { color: #00ff41; text-shadow: 0 0 5px rgba(0, 255, 65, 0.3); }
-    .neg { color: #ff3b3b; text-shadow: 0 0 5px rgba(255, 59, 59, 0.3); }
+    .pos { color: #00ff41; }
+    .neg { color: #ff3b3b; }
     
-    /* TWITTER FEED CARDS */
+    /* FEED CARDS */
     .tweet-card {
         background: #000;
         border: 1px solid #2f3336;
         border-radius: 12px;
         padding: 12px;
         margin-bottom: 12px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     .tweet-header { display: flex; align-items: center; margin-bottom: 8px; }
     .avatar { 
         width: 36px; height: 36px; border-radius: 50%; background: #333; 
         display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; margin-right: 10px;
+        overflow: hidden;
     }
-    .user-info { display: flex; flex-direction: column; line-height: 1.2; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
     .name { font-weight: bold; color: #e7e9ea; font-size: 14px; }
-    .handle { color: #71767b; font-size: 13px; }
-    .verified { color: #1d9bf0; margin-left: 4px; }
+    .handle { color: #71767b; font-size: 13px; margin-left: 5px;}
     .tweet-text { color: #e7e9ea; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
-    .tweet-footer { margin-top: 10px; border-top: 1px solid #2f3336; padding-top: 8px; display: flex; justify-content: space-between; color: #71767b; font-size: 12px; }
     
-    /* RANKER HEATMAP */
+    /* RANKER */
     .rank-card {
         display: flex; justify-content: space-between; align-items: center;
         background: #0a0a0a; border-bottom: 1px solid #222; padding: 10px;
-        transition: background 0.2s;
     }
-    .rank-card:hover { background: #111; }
-    .rank-num { font-size: 12px; color: #555; width: 30px; }
-    .rank-sym { font-weight: bold; color: #fff; width: 60px; }
     .rank-bar { height: 4px; border-radius: 2px; flex-grow: 1; margin: 0 10px; background: #222; }
     .rank-fill { height: 100%; border-radius: 2px; }
-    
-    /* LOAD MORE BUTTON */
-    .load-btn {
-        width: 100%; background: #1d9bf0; color: white; border: none; padding: 10px;
-        border-radius: 20px; font-weight: bold; cursor: pointer; text-align: center; margin-top: 10px;
-    }
-    .load-btn:hover { background: #1a8cd8; }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- TOP AD BANNER ----------------
+# ---------------- ADS (TOP) ----------------
 components.html(
     """
     <div style="display:flex; justify-content:center; margin:10px 0;">
@@ -189,7 +168,7 @@ for col, k in zip([c1,c2,c3,c4,c5,c6,c7,c8,c9,c10], keys):
     color_cls = "pos" if item['chg'] >= 0 else "neg"
     col.markdown(f"""
     <div class="metric-card">
-        <div class="metric-label">{k}</div>
+        <div style="font-size:10px; color:#666;">{k}</div>
         <div class="metric-val">{item['price']}</div>
         <div class="{color_cls}" style="font-size:12px;">{item['chg']:+.2f}%</div>
     </div>
@@ -198,9 +177,9 @@ for col, k in zip([c1,c2,c3,c4,c5,c6,c7,c8,c9,c10], keys):
 # ---------------- MAIN DASHBOARD ----------------
 col_main, col_side = st.columns([2, 1])
 
-# --- LEFT COLUMN: CHART & RANKER ---
+# --- LEFT: CHART & RANKER ---
 with col_main:
-    # 1. TRADINGVIEW CHART (PRO)
+    # CHART
     st.markdown('<div class="section">', unsafe_allow_html=True)
     st.markdown(f'<div class="title-glitch">PRICE ACTION // {ticker}</div>', unsafe_allow_html=True)
     
@@ -223,7 +202,7 @@ with col_main:
     components.html(html_chart, height=560)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 2. S&P 500 ALPHA RANKER (VISUAL)
+    # RANKER
     st.markdown('<div class="section">', unsafe_allow_html=True)
     st.markdown('<div class="title-glitch">S&P 500 MOMENTUM RANKER</div>', unsafe_allow_html=True)
     
@@ -244,122 +223,114 @@ with col_main:
 
     ranks = get_alpha_ranks()
     
-    # Render Heatmap Rows
     for i, r in enumerate(ranks[:10]):
-        bar_w = min(abs(r['chg']) * 20, 100) # Visual scaling
+        bar_w = min(abs(r['chg']) * 20, 100)
         fill_color = "#00ff41" if r['chg'] > 0 else "#ff3b3b"
         st.markdown(f"""
         <div class="rank-card">
-            <div class="rank-num">#{i+1}</div>
-            <div class="rank-sym">{r['sym']}</div>
+            <div style="color:#555; width:30px;">#{i+1}</div>
+            <div style="font-weight:bold; color:#fff; width:60px;">{r['sym']}</div>
             <div class="rank-bar"><div class="rank-fill" style="width:{bar_w}%; background:{fill_color}; box-shadow: 0 0 10px {fill_color};"></div></div>
             <div style="width:60px; text-align:right; font-family:'Roboto Mono'; color:{fill_color};">{r['chg']:+.2f}%</div>
         </div>
         """, unsafe_allow_html=True)
-    
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- RIGHT COLUMN: TWITTER FEED (STEALTH MODE) ---
+# --- RIGHT: REAL INTEL FEED (DUAL-CORE) ---
 with col_side:
     st.markdown('<div class="section">', unsafe_allow_html=True)
     st.markdown('<div class="title-glitch">LIVE INTEL FEED</div>', unsafe_allow_html=True)
     
-    # Session State for "Load More"
-    if 'tweet_count' not in st.session_state:
-        st.session_state.tweet_count = 5
-
-    # FALLBACK GENERATOR (GHOST FEED)
-    def get_ghost_tweets(count):
-        # Generates fake "tweets" from Real Yahoo Finance News
-        # This keeps the UI active even if X blocks us
-        news = yf.Ticker("SPY").news
-        tweets = []
-        handles = ["@MarketWire", "@ZeroHedge", "@WalterBloom", "@FinancialJuice", "@DeltaOne"]
-        for i, n in enumerate(news[:count]):
-            t = {
-                "user": {
-                    "name": "Market Intel",
-                    "screen_name": handles[i % len(handles)].replace("@","")
-                },
-                "text": n.get('title', 'Market Movement Detected'),
-                "id": str(i)
-            }
-            tweets.append(t)
-        return tweets
-
-    async def get_feed():
-        if not os.path.exists("cookies.json"):
-            return get_ghost_tweets(st.session_state.tweet_count)
-            
+    # 1. STOCKTWITS FALLBACK (REAL HUMANS)
+    def fetch_stocktwits(symbol):
+        url = f"https://api.stocktwits.com/api/2/streams/symbol/{symbol}.json"
         try:
-            client = Client("en-US")
-            with open("cookies.json", "r") as f:
-                raw = json.load(f)
-            cookies = {c["name"]: c["value"] for c in raw} if isinstance(raw, list) else raw
-            client.set_cookies(cookies)
-            
-            # THE TRY/EXCEPT BLOCK FOR 429 ERRORS
-            try:
-                return await client.search_tweet(f"${ticker} filter:verified", "Latest", count=st.session_state.tweet_count)
-            except Exception as e:
-                if "429" in str(e):
-                    return get_ghost_tweets(st.session_state.tweet_count)
-                else:
-                    raise e
-                    
-        except Exception as e:
-            return get_ghost_tweets(st.session_state.tweet_count)
+            r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
+            if r.status_code == 200:
+                data = r.json()
+                tweets = []
+                for msg in data['messages'][:10]:
+                    tweets.append({
+                        "id": msg['id'],
+                        "text": msg['body'],
+                        "user": {
+                            "name": msg['user']['username'],
+                            "screen_name": msg['user']['username'], # Stocktwits uses username as handle
+                            "profile_image_url_https": msg['user']['avatar_url']
+                        },
+                        "source": "Stocktwits"
+                    })
+                return tweets
+            return []
+        except: return []
 
-    # EXECUTE FEED
+    # 2. TWIKIT PRIMARY
+    async def get_feed():
+        # Try X first
+        try:
+            if os.path.exists("cookies.json"):
+                client = Client("en-US")
+                with open("cookies.json", "r") as f:
+                    raw = json.load(f)
+                cookies = {c["name"]: c["value"] for c in raw} if isinstance(raw, list) else raw
+                client.set_cookies(cookies)
+                return await client.search_tweet(f"${ticker} filter:verified", "Latest", count=10)
+        except Exception as e:
+            pass # Fail silently to fallback
+            
+        # Fallback to Stocktwits if X fails
+        return fetch_stocktwits(ticker)
+
     try:
+        # Run Async Loop
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        tweets = loop.run_until_complete(get_feed())
+        feed_data = loop.run_until_complete(get_feed())
         
-        # Render Twitter Cards
-        for t in tweets:
-            # Handle Data Structure (Twikit object vs Ghost Dict)
-            if isinstance(t, dict):
-                name = t['user']['name']
-                handle = t['user']['screen_name']
-                text = t['text']
-            else:
-                name = t.user.name
-                handle = t.user.screen_name
-                text = t.text
-            
-            # Generate Avatar Initials
-            initial = name[0] if name else "?"
-            
-            st.markdown(f"""
-            <div class="tweet-card">
-                <div class="tweet-header">
-                    <div class="avatar">{initial}</div>
-                    <div class="user-info">
-                        <div style="display:flex; align-items:center;">
-                            <span class="name">{name}</span>
-                            <span class="verified">☑</span>
-                        </div>
-                        <span class="handle">@{handle}</span>
-                    </div>
-                </div>
-                <div class="tweet-text">{text}</div>
-                <div class="tweet-footer">
-                    <span>Live Wire</span>
-                    <span>INTEL SCAN</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-        # LOAD MORE BUTTON
-        if st.button("LOAD MORE INTEL", key="load_more", help="Fetch older tweets"):
-            st.session_state.tweet_count += 5
-            st.rerun()
-            
-    except Exception as e:
-        st.error(f"FEED ERROR: {e}")
+        if not feed_data:
+            st.markdown("<div style='color:#555;'>NO SIGNAL DETECTED</div>", unsafe_allow_html=True)
+        else:
+            for item in feed_data:
+                # Normalize Data
+                if isinstance(item, dict):
+                    # Stocktwits format
+                    name = item['user']['name']
+                    handle = item['user']['screen_name']
+                    text = item['text']
+                    img_url = item['user'].get('profile_image_url_https', '')
+                    source = item.get('source', 'X')
+                else:
+                    # Twikit Object
+                    name = item.user.name
+                    handle = item.user.screen_name
+                    text = item.text
+                    img_url = "" # Twikit avatar fetching can be complex, default blank
+                    source = "X"
 
-    # VERTICAL AD IN FEED
+                # Avatar Logic
+                if img_url:
+                    avatar_html = f'<img src="{img_url}">'
+                else:
+                    initial = name[0] if name else "?"
+                    avatar_html = initial
+
+                st.markdown(f"""
+                <div class="tweet-card">
+                    <div class="tweet-header">
+                        <div class="avatar">{avatar_html}</div>
+                        <div style="margin-left:10px;">
+                            <div class="name">{name} <span style="color:#1d9bf0; font-size:10px;">{source}</span></div>
+                            <div class="handle">@{handle}</div>
+                        </div>
+                    </div>
+                    <div class="tweet-text">{text}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+    except Exception as e:
+        st.error(f"FEED SYSTEM ERROR: {e}")
+
+    # VERTICAL AD
     components.html(
         """
         <div style="display:flex; justify-content:center; margin-top:20px;">
@@ -379,7 +350,7 @@ with col_side:
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ---------------- BOTTOM AD (HORIZONTAL) ----------------
+# ---------------- BOTTOM AD ----------------
 components.html(
     """
     <div style="text-align:center;">
