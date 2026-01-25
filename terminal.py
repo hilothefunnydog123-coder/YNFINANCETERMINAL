@@ -21,135 +21,127 @@ st.set_page_config(
 # Auto-refresh every 60 seconds
 st_autorefresh(interval=60000, key="refresh")
 
-# ---------------- J.A.R.V.I.S. HOLOGRAPHIC CSS ----------------
+# ---------------- MODERN STYLE ----------------
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap');
+    /* IMPORT FONTS */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
 
-    /* CORE BACKGROUND (ARC REACTOR VIBE) */
-    .stApp {
-        background: radial-gradient(circle at 50% 10%, #1a2a3a 0%, #000000 90%);
-        background-attachment: fixed;
-        color: #e0f7fa;
-        font-family: 'Rajdhani', sans-serif;
+    /* GLOBAL RESET */
+    html, body, [class*="css"] {
+        background-color: #0b0c10; /* Deep Carbon */
+        color: #c5c6c7;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* REMOVE DEFAULT STREAMLIT PADDING */
+    .block-container { 
+        padding-top: 1rem; 
+        padding-bottom: 5rem; 
+        max-width: 95rem;
     }
     
     [data-testid="stHeader"] { display: none; }
-    .block-container { padding-top: 0rem; padding-bottom: 5rem; }
-
-    /* HOLOGRAPHIC PANELS (GLASSMORPHISM) */
-    .section {
-        background: rgba(10, 20, 30, 0.6);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(0, 243, 255, 0.2);
-        box-shadow: 0 0 15px rgba(0, 243, 255, 0.05);
-        border-radius: 4px;
-        padding: 15px;
+    
+    /* --- GLASSMORPHISM CARDS --- */
+    .glass-card {
+        background: rgba(31, 40, 51, 0.4);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 20px;
         margin-bottom: 20px;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    /* CORNER ACCENTS */
-    .section::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0;
-        width: 10px; height: 10px;
-        border-top: 2px solid #00f3ff;
-        border-left: 2px solid #00f3ff;
-    }
-    .section::after {
-        content: '';
-        position: absolute;
-        bottom: 0; right: 0;
-        width: 10px; height: 10px;
-        border-bottom: 2px solid #00f3ff;
-        border-right: 2px solid #00f3ff;
-    }
-
-    /* TYPOGRAPHY */
-    .title-glitch {
-        font-family: 'Orbitron', sans-serif;
-        font-weight: 900;
-        font-size: 22px;
-        color: #fff;
-        text-shadow: 0 0 10px rgba(0, 243, 255, 0.8);
-        text-transform: uppercase;
-        letter-spacing: 3px;
-        margin-bottom: 15px;
-        border-bottom: 1px solid rgba(0, 243, 255, 0.3);
-        padding-bottom: 5px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    /* SYSTEM PULSE ANIMATION */
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(0, 243, 255, 0.7); }
-        70% { box-shadow: 0 0 0 5px rgba(0, 243, 255, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(0, 243, 255, 0); }
-    }
-    
-    .live-dot {
-        height: 8px; width: 8px;
-        background-color: #00f3ff;
-        border-radius: 50%;
-        display: inline-block;
-        animation: pulse 2s infinite;
-        margin-right: 8px;
-    }
-
-    /* HUD METRIC CARDS */
-    .metric-card {
-        background: rgba(0, 243, 255, 0.05);
-        border: 1px solid rgba(0, 243, 255, 0.1);
-        border-radius: 4px;
-        padding: 12px;
-        text-align: center;
+        box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
         transition: all 0.3s ease;
     }
-    .metric-card:hover {
-        background: rgba(0, 243, 255, 0.1);
-        border-color: #00f3ff;
-        box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
-    }
-    .metric-label { font-family: 'Orbitron', sans-serif; font-size: 9px; color: #00f3ff; letter-spacing: 1px; opacity: 0.8; }
-    .metric-val { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: #fff; margin: 2px 0; text-shadow: 0 0 5px rgba(255,255,255,0.5); }
     
-    .pos { color: #00ff41; text-shadow: 0 0 8px rgba(0, 255, 65, 0.4); }
-    .neg { color: #ff3b3b; text-shadow: 0 0 8px rgba(255, 59, 59, 0.4); }
+    .glass-card:hover {
+        border-color: rgba(102, 252, 241, 0.3);
+        box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.4);
+        transform: translateY(-2px);
+    }
 
-    /* DATA FEED UI */
-    .tweet-card {
-        background: rgba(255, 255, 255, 0.03);
-        border-left: 2px solid #2f3336;
+    /* --- TYPOGRAPHY --- */
+    .header-title {
+        font-family: 'Inter', sans-serif;
+        font-weight: 800;
+        font-size: 32px;
+        background: linear-gradient(90deg, #fff, #66fcf1);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -1px;
+    }
+    .section-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        color: #66fcf1;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        opacity: 0.8;
+    }
+    .section-title::before {
+        content: '';
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #66fcf1;
+        border-radius: 50%;
+        margin-right: 10px;
+        box-shadow: 0 0 8px #66fcf1;
+    }
+
+    /* --- HUD METRICS --- */
+    .hud-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+    .metric-box {
+        background: rgba(255,255,255,0.03);
+        border-radius: 8px;
         padding: 12px;
-        margin-bottom: 10px;
-        transition: border-left 0.2s;
+        text-align: left;
+        border-left: 2px solid rgba(255,255,255,0.1);
+        transition: border-left 0.3s;
     }
-    .tweet-card:hover { border-left: 2px solid #00f3ff; background: rgba(0, 243, 255, 0.02); }
-    
-    .avatar { 
-        width: 38px; height: 38px; border-radius: 50%; 
-        background: linear-gradient(45deg, #111, #333); 
-        border: 1px solid #444;
-        display: flex; align-items: center; justify-content: center; 
-        font-family: 'Orbitron'; color: #00f3ff; margin-right: 12px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    .metric-box:hover { border-left: 2px solid #66fcf1; }
+    .metric-label { font-size: 10px; color: #8892b0; font-weight: 600; text-transform: uppercase; }
+    .metric-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: #fff; margin-top: 4px; }
+    .metric-delta { font-size: 11px; font-weight: bold; margin-top: 2px; }
+    .pos { color: #45a29e; } /* Muted Teal */
+    .neg { color: #ef476f; } /* Muted Red */
+
+    /* --- FEED & LISTS --- */
+    .feed-item {
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding: 15px 0;
     }
-    .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .feed-item:last-child { border-bottom: none; }
     
-    .name { font-family: 'Rajdhani', sans-serif; font-weight: 700; color: #e0f7fa; font-size: 16px; }
-    .handle { color: #00bcd4; font-size: 13px; opacity: 0.7; }
-    .tweet-text { color: #cfd8dc; font-size: 14px; line-height: 1.5; font-weight: 400; }
+    .rank-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
     
-    /* RANKER BARS */
-    .rank-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .rank-bar-bg { flex-grow: 1; height: 4px; background: rgba(255,255,255,0.1); margin: 0 12px; border-radius: 2px; }
-    .rank-bar-fill { height: 100%; border-radius: 2px; box-shadow: 0 0 8px currentColor; }
+    /* ANIMATED BARS */
+    .rank-bar-bg { 
+        flex-grow: 1; 
+        height: 6px; 
+        background: rgba(255,255,255,0.05); 
+        border-radius: 3px; 
+        margin: 0 15px; 
+        overflow: hidden;
+    }
+    .rank-bar-fill { 
+        height: 100%; 
+        border-radius: 3px; 
+        transition: width 1s cubic-bezier(0.1, 0.7, 1.0, 0.1);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -172,25 +164,17 @@ components.html(
     height=70,
 )
 
-# ---------------- HEADER ----------------
-st.markdown("""
-<div style="text-align:center; margin-bottom:30px;">
-    <h1 style="font-family:'Orbitron'; font-weight:900; font-size:36px; color:#fff; text-shadow:0 0 20px #00f3ff; margin:0;">GLOBAL SURVEILLANCE</h1>
-    <div style="font-family:'Rajdhani'; color:#00f3ff; font-size:14px; letter-spacing:4px; margin-top:5px;">
-        <span class="live-dot"></span>SYSTEM ONLINE // REAL-TIME FEED ACTIVE
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
     st.markdown("### // TARGET SELECTOR")
     ticker = st.text_input("SYMBOL", "NVDA").upper()
-    st.caption("J.A.R.V.I.S. PROTOCOL ENGAGED")
+    st.caption("SYSTEM: ONLINE")
 
 # ---------------- DATA ENGINE ----------------
+
 @st.cache_data(ttl=60)
 def fetch_global_scan():
+    """Fetches global market context indices."""
     symbols = {
         "ES_FUT": "ES=F", "NQ_FUT": "NQ=F", "10Y_YIELD": "^TNX", 
         "VIX": "^VIX", "DXY": "DX-Y.NYB", "OIL": "CL=F", 
@@ -200,112 +184,169 @@ def fetch_global_scan():
     try:
         tickers_list = list(symbols.values())
         df = yf.download(tickers_list, period="5d", interval="1d", progress=False)
-        closes = df['Close'] if isinstance(df.columns, pd.MultiIndex) else df
+        
+        # Handle MultiIndex if present
+        closes = df['Close'] if 'Close' in df else df
         
         for k, v in symbols.items():
-            if v in closes.columns:
-                series = closes[v].dropna()
+            try:
+                if isinstance(closes.columns, pd.MultiIndex):
+                     # If multi-index, we need to find the column that matches
+                     series = closes[v]
+                elif v in closes.columns:
+                     series = closes[v]
+                else:
+                    data[k] = {"price": "N/A", "chg": 0.0}
+                    continue
+
+                series = series.dropna()
+                if len(series) < 2:
+                    data[k] = {"price": "N/A", "chg": 0.0}
+                    continue
+
                 curr = series.iloc[-1]
                 prev = series.iloc[-2]
+                
+                # Safety check for scalar values
+                if isinstance(curr, pd.Series): curr = curr.iloc[0]
+                if isinstance(prev, pd.Series): prev = prev.iloc[0]
+
                 chg = ((curr - prev) / prev) * 100
                 fmt = f"{curr:,.0f}" if "BTC" in k or "ETH" in k else f"{curr:,.2f}"
                 data[k] = {"price": fmt, "chg": chg}
-            else: data[k] = {"price": "N/A", "chg": 0.0}
+            except:
+                data[k] = {"price": "ERR", "chg": 0.0}
     except:
         data = {k: {"price": "OFFLINE", "chg": 0.0} for k in symbols}
     return data
 
-scan_data = fetch_global_scan()
+@st.cache_data(ttl=300)
+def get_alpha_ranks():
+    """Fetches momentum ranker for key tickers."""
+    targets = ["NVDA", "TSLA", "AMD", "META", "AMZN", "MSFT", "GOOGL", "AAPL", "NFLX", "PLTR", "COIN", "MSTR", "SMCI", "AVGO", "COST"]
+    try:
+        # Fetching 2 days is enough for % change and faster
+        df = yf.download(targets, period="5d", interval="1d", progress=False)['Close']
+        
+        # Flatten MultiIndex if necessary
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(1)
+        
+        ranks = []
+        for t in targets:
+            if t in df.columns:
+                series = df[t].dropna()
+                if len(series) >= 2:
+                    curr = series.iloc[-1]
+                    prev = series.iloc[-2]
+                    chg = ((curr - prev) / prev) * 100
+                    # Simple scoring: Magnitude of change
+                    ranks.append({"sym": t, "chg": chg, "score": abs(chg)})
+        return sorted(ranks, key=lambda x: x['score'], reverse=True)
+    except Exception as e:
+        return []
 
-# ---------------- HUD GRID ----------------
-keys = list(scan_data.keys())
-c1, c2, c3, c4, c5 = st.columns(5)
-c6, c7, c8, c9, c10 = st.columns(5)
+# ---------------- HEADER ----------------
+c_head_1, c_head_2 = st.columns([3, 1])
+with c_head_1:
+    st.markdown('<div class="header-title">COMMAND // CENTER</div>', unsafe_allow_html=True)
+    st.markdown('<div style="color:#8892b0; font-size:14px;">REAL-TIME MARKET SURVEILLANCE & SOCIAL SENTIMENT</div>', unsafe_allow_html=True)
 
-for col, k in zip([c1,c2,c3,c4,c5,c6,c7,c8,c9,c10], keys):
-    item = scan_data[k]
-    color_cls = "pos" if item['chg'] >= 0 else "neg"
-    col.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">{k}</div>
-        <div class="metric-val">{item['price']}</div>
-        <div class="{color_cls}" style="font-family:'Rajdhani'; font-weight:bold; font-size:14px;">{item['chg']:+.2f}%</div>
+with c_head_2:
+    st.markdown(f"""
+    <div style="text-align:right; font-family:'JetBrains Mono'; font-size:12px; color:#66fcf1;">
+        {datetime.now().strftime('%H:%M:%S UTC')}<br>
+        <span style="color:#45a29e;">● SYSTEM OPTIMAL</span>
     </div>
     """, unsafe_allow_html=True)
 
-# ---------------- MAIN DASHBOARD ----------------
-col_main, col_side = st.columns([2, 1])
+st.markdown("---") 
 
-# --- LEFT: CHART & RANKER ---
-with col_main:
-    # CHART
-    st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown(f'''
-    <div class="title-glitch">
-        <span>TARGET SCAN // {ticker}</span>
-        <span style="font-size:12px; color:#555;">LIVE FEED</span>
+# ---------------- HUD GRID ----------------
+scan_data = fetch_global_scan()
+hud_html = '<div class="hud-container">'
+
+for k, v in scan_data.items():
+    color = "pos" if v['chg'] >= 0 else "neg"
+    arrow = "▲" if v['chg'] >= 0 else "▼"
+    hud_html += f"""
+    <div class="metric-box">
+        <div class="metric-label">{k}</div>
+        <div class="metric-value">{v['price']}</div>
+        <div class="metric-delta {color}">{arrow} {v['chg']:.2f}%</div>
     </div>
-    ''', unsafe_allow_html=True)
+    """
+hud_html += "</div>"
+st.markdown(hud_html, unsafe_allow_html=True)
+
+# ---------------- MAIN DASHBOARD ----------------
+col_main, col_side = st.columns([2.2, 1])
+
+# --- LEFT COLUMN: CHART & RANKER ---
+with col_main:
+    # 1. CHART SECTION
+    st.markdown("""
+    <div class="glass-card">
+        <div class="section-title">ASSET INTELLIGENCE</div>
+    """, unsafe_allow_html=True)
     
     html_chart = f"""
-    <div class="tradingview-widget-container" style="height:550px;width:100%">
+    <div class="tradingview-widget-container" style="height:500px;width:100%">
       <div id="tradingview_widget" style="height:100%;width:100%"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
       <script type="text/javascript">
       new TradingView.widget({{
       "autosize": true, "symbol": "{ticker}", "interval": "15", "timezone": "Etc/UTC",
       "theme": "dark", "style": "1", "locale": "en", "enable_publishing": false,
-      "backgroundColor": "rgba(10, 20, 30, 1)", "gridColor": "rgba(0, 243, 255, 0.05)",
-      "hide_top_toolbar": false, "save_image": false,
-      "studies": ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "Volume@tv-basicstudies"],
+      "backgroundColor": "rgba(11, 12, 16, 1)", 
+      "gridColor": "rgba(255, 255, 255, 0.05)",
+      "hide_top_toolbar": false, 
+      "studies": ["RSI@tv-basicstudies"],
       "container_id": "tradingview_widget"
       }});
       </script>
     </div>
+    </div>
     """
-    components.html(html_chart, height=560)
-    st.markdown('</div>', unsafe_allow_html=True)
+    components.html(html_chart, height=520)
 
-    # RANKER
-    st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="title-glitch">S&P 500 MOMENTUM</div>', unsafe_allow_html=True)
+    # 2. RANKER SECTION
+    st.markdown("""
+    <div class="glass-card">
+        <div class="section-title">MOMENTUM SCANNERS</div>
+    """, unsafe_allow_html=True)
     
-    @st.cache_data(ttl=300)
-    def get_alpha_ranks():
-        targets = ["NVDA", "TSLA", "AMD", "META", "AMZN", "MSFT", "GOOGL", "AAPL", "NFLX", "PLTR", "COIN", "MSTR", "SMCI", "AVGO", "COST"]
-        data = yf.download(targets, period="5d", interval="1d", progress=False)['Close']
-        if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(1)
-        
-        ranks = []
-        for t in targets:
-            try:
-                chg = ((data[t].iloc[-1] - data[t].iloc[-2])/data[t].iloc[-2])*100
-                vol = data[t].pct_change().std() * 100
-                ranks.append({"sym": t, "chg": chg, "vol": vol, "score": abs(chg)*vol})
-            except: continue
-        return sorted(ranks, key=lambda x: x['score'], reverse=True)
-
     ranks = get_alpha_ranks()
     
-    for i, r in enumerate(ranks[:10]):
-        bar_w = min(abs(r['chg']) * 20, 100)
-        fill_color = "#00ff41" if r['chg'] > 0 else "#ff3b3b"
-        st.markdown(f"""
-        <div class="rank-row">
-            <div style="font-family:'Orbitron'; color:#555; width:30px; font-size:10px;">0{i+1}</div>
-            <div style="font-family:'Rajdhani'; font-weight:bold; color:#fff; width:60px; font-size:16px;">{r['sym']}</div>
-            <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:{bar_w}%; background:{fill_color}; color:{fill_color};"></div></div>
-            <div style="width:70px; text-align:right; font-family:'Rajdhani'; font-weight:bold; color:{fill_color};">{r['chg']:+.2f}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    if not ranks:
+        st.caption("Initializing Scanner...")
+    else:
+        for i, r in enumerate(ranks[:8]):
+            # Cap width at 100%, scale factor 20
+            width = min(abs(r['chg']) * 20, 100)
+            color = "#45a29e" if r['chg'] > 0 else "#ef476f"
+            
+            st.markdown(f"""
+            <div class="rank-row">
+                <div style="width:40px; font-family:'JetBrains Mono'; color:#666;">0{i+1}</div>
+                <div style="width:60px; font-weight:700; color:#fff;">{r['sym']}</div>
+                <div class="rank-bar-bg">
+                    <div class="rank-bar-fill" style="width:{width}%; background:{color}; box-shadow: 0 0 10px {color}40;"></div>
+                </div>
+                <div style="width:70px; text-align:right; font-family:'JetBrains Mono'; color:{color};">{r['chg']:+.2f}%</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# --- RIGHT: INTEL FEED ---
+# --- RIGHT COLUMN: INTEL FEED ---
 with col_side:
-    st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="title-glitch">INTEL STREAM</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="glass-card">
+        <div class="section-title">LIVE WIRE</div>
+    """, unsafe_allow_html=True)
     
-    # FETCH LOGIC (TRIPLE REDUNDANCY)
+    # --- FEED LOGIC (TRIPLE REDUNDANCY) ---
     def fetch_yahoo_news(symbol):
         try:
             news = yf.Ticker(symbol).news
@@ -338,28 +379,38 @@ with col_side:
         except: return []
 
     async def get_feed():
+        # A. Try X (Cookies)
         try:
             if os.path.exists("cookies.json"):
                 client = Client("en-US")
                 with open("cookies.json", "r") as f:
                     raw = json.load(f)
-                cookies = {c["name"]: c["value"] for c in raw} if isinstance(raw, list) else raw
+                
+                # Robust cookie parsing
+                if isinstance(raw, list):
+                    cookies = {c['name']: c['value'] for c in raw}
+                else:
+                    cookies = raw
+                
                 client.set_cookies(cookies)
                 return await client.search_tweet(f"${ticker} filter:verified", "Latest", count=10)
         except: pass
         
+        # B. Try Stocktwits
         st_data = fetch_stocktwits(ticker)
         if st_data: return st_data
         
+        # C. Try Yahoo
         return fetch_yahoo_news(ticker)
 
-    # EXECUTE
+    # EXECUTE FEED
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         feed_data = loop.run_until_complete(get_feed())
         
-        for item in feed_data:
+        for item in feed_data[:8]: 
+            # Normalize Data
             if isinstance(item, dict):
                 name = item['user']['name']
                 handle = item['user']['screen_name']
@@ -371,26 +422,23 @@ with col_side:
                 text = item.text
                 img = ""
 
-            avatar_html = f'<img src="{img}">' if img else f'{name[0]}'
+            avatar = f'<img src="{img}" style="width:32px; height:32px; border-radius:50%;">' if img else '<div style="width:32px; height:32px; background:#333; border-radius:50%;"></div>'
 
             st.markdown(f"""
-            <div class="tweet-card">
-                <div class="tweet-header">
-                    <div class="avatar">{avatar_html}</div>
-                    <div style="margin-left:5px;">
-                        <div class="name-row">
-                            <div class="name">{name}</div>
-                            <div class="verified">☑</div>
-                        </div>
-                        <div class="handle">@{handle}</div>
+            <div class="feed-item">
+                <div style="display:flex; align-items:center; margin-bottom:8px;">
+                    {avatar}
+                    <div style="margin-left:10px; line-height:1.2;">
+                        <div style="font-size:13px; font-weight:700; color:#fff;">{name}</div>
+                        <div style="font-size:11px; color:#666;">@{handle}</div>
                     </div>
                 </div>
-                <div class="tweet-text">{text}</div>
+                <div style="font-size:13px; color:#ccc; line-height:1.4;">{text}</div>
             </div>
             """, unsafe_allow_html=True)
             
     except Exception as e:
-        st.error(f"FEED SYSTEM ERROR: {e}")
+        st.warning(f"Feed System Error: {e}")
 
     # VERTICAL AD
     components.html(
@@ -410,7 +458,7 @@ with col_side:
         """,
         height=320,
     )
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------------- BOTTOM AD ----------------
 components.html(
