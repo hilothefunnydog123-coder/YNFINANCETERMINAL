@@ -21,79 +21,135 @@ st.set_page_config(
 # Auto-refresh every 60 seconds
 st_autorefresh(interval=60000, key="refresh")
 
-# ---------------- STYLE ----------------
+# ---------------- J.A.R.V.I.S. HOLOGRAPHIC CSS ----------------
 st.markdown("""
 <style>
-    html, body, [class*="css"] {
-        background-color: #000000;
-        color: #e0e0e0;
-        font-family: 'Inter', sans-serif;
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap');
+
+    /* CORE BACKGROUND (ARC REACTOR VIBE) */
+    .stApp {
+        background: radial-gradient(circle at 50% 10%, #1a2a3a 0%, #000000 90%);
+        background-attachment: fixed;
+        color: #e0f7fa;
+        font-family: 'Rajdhani', sans-serif;
     }
     
     [data-testid="stHeader"] { display: none; }
     .block-container { padding-top: 0rem; padding-bottom: 5rem; }
-    
-    /* NEON SECTIONS */
+
+    /* HOLOGRAPHIC PANELS (GLASSMORPHISM) */
     .section {
-        background: #050505;
-        border: 1px solid #222;
-        border-radius: 8px;
+        background: rgba(10, 20, 30, 0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 243, 255, 0.2);
+        box-shadow: 0 0 15px rgba(0, 243, 255, 0.05);
+        border-radius: 4px;
         padding: 15px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    }
-    
-    /* GLITCH TITLE */
-    .title-glitch {
-        font-family: 'Courier New', monospace;
-        font-weight: 900;
-        font-size: 20px;
-        color: #fff;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        margin-bottom: 15px;
-        border-left: 4px solid #00ffff;
-        padding-left: 10px;
-    }
-    
-    /* HUD CARDS */
-    .metric-card {
-        background: linear-gradient(145deg, #0a0a0a, #0f0f0f);
-        border: 1px solid #333;
-        border-radius: 6px;
-        padding: 10px;
-        text-align: center;
-    }
-    .metric-val { font-size: 18px; font-weight: bold; color: #fff; margin: 5px 0; }
-    .pos { color: #00ff41; }
-    .neg { color: #ff3b3b; }
-    
-    /* TWEET UI (X COPYCAT) */
-    .tweet-card {
-        background: #000;
-        border-bottom: 1px solid #2f3336;
-        padding: 15px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    .tweet-header { display: flex; align-items: center; margin-bottom: 5px; }
-    .avatar { 
-        width: 40px; height: 40px; border-radius: 50%; background: #333; 
-        display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; margin-right: 10px;
+        position: relative;
         overflow: hidden;
     }
-    .name-row { display: flex; align-items: center; }
-    .name { font-weight: bold; color: #e7e9ea; font-size: 15px; margin-right: 4px; }
-    .handle { color: #71767b; font-size: 14px; }
-    .verified { color: #1d9bf0; font-size: 14px; margin-left: 2px; }
-    .tweet-text { color: #e7e9ea; font-size: 15px; line-height: 1.5; white-space: pre-wrap; margin-left: 50px; margin-top: -15px; }
-    .tweet-meta { margin-left: 50px; margin-top: 10px; color: #71767b; font-size: 13px; }
     
-    /* RANKER */
-    .rank-card {
-        display: flex; justify-content: space-between; align-items: center;
-        background: #0a0a0a; border-bottom: 1px solid #222; padding: 10px;
+    /* CORNER ACCENTS */
+    .section::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0;
+        width: 10px; height: 10px;
+        border-top: 2px solid #00f3ff;
+        border-left: 2px solid #00f3ff;
     }
-    .rank-bar { height: 4px; border-radius: 2px; flex-grow: 1; margin: 0 10px; background: #222; }
+    .section::after {
+        content: '';
+        position: absolute;
+        bottom: 0; right: 0;
+        width: 10px; height: 10px;
+        border-bottom: 2px solid #00f3ff;
+        border-right: 2px solid #00f3ff;
+    }
+
+    /* TYPOGRAPHY */
+    .title-glitch {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 900;
+        font-size: 22px;
+        color: #fff;
+        text-shadow: 0 0 10px rgba(0, 243, 255, 0.8);
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        margin-bottom: 15px;
+        border-bottom: 1px solid rgba(0, 243, 255, 0.3);
+        padding-bottom: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    /* SYSTEM PULSE ANIMATION */
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(0, 243, 255, 0.7); }
+        70% { box-shadow: 0 0 0 5px rgba(0, 243, 255, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 243, 255, 0); }
+    }
+    
+    .live-dot {
+        height: 8px; width: 8px;
+        background-color: #00f3ff;
+        border-radius: 50%;
+        display: inline-block;
+        animation: pulse 2s infinite;
+        margin-right: 8px;
+    }
+
+    /* HUD METRIC CARDS */
+    .metric-card {
+        background: rgba(0, 243, 255, 0.05);
+        border: 1px solid rgba(0, 243, 255, 0.1);
+        border-radius: 4px;
+        padding: 12px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .metric-card:hover {
+        background: rgba(0, 243, 255, 0.1);
+        border-color: #00f3ff;
+        box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+    }
+    .metric-label { font-family: 'Orbitron', sans-serif; font-size: 9px; color: #00f3ff; letter-spacing: 1px; opacity: 0.8; }
+    .metric-val { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: #fff; margin: 2px 0; text-shadow: 0 0 5px rgba(255,255,255,0.5); }
+    
+    .pos { color: #00ff41; text-shadow: 0 0 8px rgba(0, 255, 65, 0.4); }
+    .neg { color: #ff3b3b; text-shadow: 0 0 8px rgba(255, 59, 59, 0.4); }
+
+    /* DATA FEED UI */
+    .tweet-card {
+        background: rgba(255, 255, 255, 0.03);
+        border-left: 2px solid #2f3336;
+        padding: 12px;
+        margin-bottom: 10px;
+        transition: border-left 0.2s;
+    }
+    .tweet-card:hover { border-left: 2px solid #00f3ff; background: rgba(0, 243, 255, 0.02); }
+    
+    .avatar { 
+        width: 38px; height: 38px; border-radius: 50%; 
+        background: linear-gradient(45deg, #111, #333); 
+        border: 1px solid #444;
+        display: flex; align-items: center; justify-content: center; 
+        font-family: 'Orbitron'; color: #00f3ff; margin-right: 12px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    
+    .name { font-family: 'Rajdhani', sans-serif; font-weight: 700; color: #e0f7fa; font-size: 16px; }
+    .handle { color: #00bcd4; font-size: 13px; opacity: 0.7; }
+    .tweet-text { color: #cfd8dc; font-size: 14px; line-height: 1.5; font-weight: 400; }
+    
+    /* RANKER BARS */
+    .rank-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .rank-bar-bg { flex-grow: 1; height: 4px; background: rgba(255,255,255,0.1); margin: 0 12px; border-radius: 2px; }
+    .rank-bar-fill { height: 100%; border-radius: 2px; box-shadow: 0 0 8px currentColor; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -118,9 +174,11 @@ components.html(
 
 # ---------------- HEADER ----------------
 st.markdown("""
-<div style="text-align:center; margin-bottom:20px;">
-    <h1 style="color:#fff; font-family:'Courier New'; font-weight:900; letter-spacing:4px; text-shadow:0 0 20px rgba(0,255,255,0.5);">GLOBAL SURVEILLANCE</h1>
-    <div style="color:#00ffff; font-size:12px; letter-spacing:2px;">LIVE MARKET INTELLIGENCE SYSTEM</div>
+<div style="text-align:center; margin-bottom:30px;">
+    <h1 style="font-family:'Orbitron'; font-weight:900; font-size:36px; color:#fff; text-shadow:0 0 20px #00f3ff; margin:0;">GLOBAL SURVEILLANCE</h1>
+    <div style="font-family:'Rajdhani'; color:#00f3ff; font-size:14px; letter-spacing:4px; margin-top:5px;">
+        <span class="live-dot"></span>SYSTEM ONLINE // REAL-TIME FEED ACTIVE
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -128,9 +186,9 @@ st.markdown("""
 with st.sidebar:
     st.markdown("### // TARGET SELECTOR")
     ticker = st.text_input("SYMBOL", "NVDA").upper()
-    st.caption("SYSTEM: ONLINE")
+    st.caption("J.A.R.V.I.S. PROTOCOL ENGAGED")
 
-# ---------------- DATA ENGINE (60s Cache) ----------------
+# ---------------- DATA ENGINE ----------------
 @st.cache_data(ttl=60)
 def fetch_global_scan():
     symbols = {
@@ -169,9 +227,9 @@ for col, k in zip([c1,c2,c3,c4,c5,c6,c7,c8,c9,c10], keys):
     color_cls = "pos" if item['chg'] >= 0 else "neg"
     col.markdown(f"""
     <div class="metric-card">
-        <div style="font-size:10px; color:#666;">{k}</div>
+        <div class="metric-label">{k}</div>
         <div class="metric-val">{item['price']}</div>
-        <div class="{color_cls}" style="font-size:12px;">{item['chg']:+.2f}%</div>
+        <div class="{color_cls}" style="font-family:'Rajdhani'; font-weight:bold; font-size:14px;">{item['chg']:+.2f}%</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -182,7 +240,12 @@ col_main, col_side = st.columns([2, 1])
 with col_main:
     # CHART
     st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown(f'<div class="title-glitch">PRICE ACTION // {ticker}</div>', unsafe_allow_html=True)
+    st.markdown(f'''
+    <div class="title-glitch">
+        <span>TARGET SCAN // {ticker}</span>
+        <span style="font-size:12px; color:#555;">LIVE FEED</span>
+    </div>
+    ''', unsafe_allow_html=True)
     
     html_chart = f"""
     <div class="tradingview-widget-container" style="height:550px;width:100%">
@@ -192,7 +255,7 @@ with col_main:
       new TradingView.widget({{
       "autosize": true, "symbol": "{ticker}", "interval": "15", "timezone": "Etc/UTC",
       "theme": "dark", "style": "1", "locale": "en", "enable_publishing": false,
-      "backgroundColor": "rgba(0, 0, 0, 1)", "gridColor": "rgba(20, 20, 20, 1)",
+      "backgroundColor": "rgba(10, 20, 30, 1)", "gridColor": "rgba(0, 243, 255, 0.05)",
       "hide_top_toolbar": false, "save_image": false,
       "studies": ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "Volume@tv-basicstudies"],
       "container_id": "tradingview_widget"
@@ -205,7 +268,7 @@ with col_main:
 
     # RANKER
     st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="title-glitch">S&P 500 MOMENTUM RANKER</div>', unsafe_allow_html=True)
+    st.markdown('<div class="title-glitch">S&P 500 MOMENTUM</div>', unsafe_allow_html=True)
     
     @st.cache_data(ttl=300)
     def get_alpha_ranks():
@@ -228,21 +291,21 @@ with col_main:
         bar_w = min(abs(r['chg']) * 20, 100)
         fill_color = "#00ff41" if r['chg'] > 0 else "#ff3b3b"
         st.markdown(f"""
-        <div class="rank-card">
-            <div style="color:#555; width:30px;">#{i+1}</div>
-            <div style="font-weight:bold; color:#fff; width:60px;">{r['sym']}</div>
-            <div class="rank-bar"><div class="rank-fill" style="width:{bar_w}%; background:{fill_color}; box-shadow: 0 0 10px {fill_color};"></div></div>
-            <div style="width:60px; text-align:right; font-family:'Roboto Mono'; color:{fill_color};">{r['chg']:+.2f}%</div>
+        <div class="rank-row">
+            <div style="font-family:'Orbitron'; color:#555; width:30px; font-size:10px;">0{i+1}</div>
+            <div style="font-family:'Rajdhani'; font-weight:bold; color:#fff; width:60px; font-size:16px;">{r['sym']}</div>
+            <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:{bar_w}%; background:{fill_color}; color:{fill_color};"></div></div>
+            <div style="width:70px; text-align:right; font-family:'Rajdhani'; font-weight:bold; color:{fill_color};">{r['chg']:+.2f}%</div>
         </div>
         """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- RIGHT: REAL INTEL FEED (TRIPLE REDUNDANCY) ---
+# --- RIGHT: INTEL FEED ---
 with col_side:
     st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="title-glitch">LIVE INTEL FEED</div>', unsafe_allow_html=True)
+    st.markdown('<div class="title-glitch">INTEL STREAM</div>', unsafe_allow_html=True)
     
-    # 1. YAHOO FALLBACK (Guaranteed to work)
+    # FETCH LOGIC (TRIPLE REDUNDANCY)
     def fetch_yahoo_news(symbol):
         try:
             news = yf.Ticker(symbol).news
@@ -257,7 +320,6 @@ with col_side:
             return tweets
         except: return []
 
-    # 2. STOCKTWITS FALLBACK (Real Humans)
     def fetch_stocktwits(symbol):
         url = f"https://api.stocktwits.com/api/2/streams/symbol/{symbol}.json"
         try:
@@ -275,9 +337,7 @@ with col_side:
             return []
         except: return []
 
-    # 3. MAIN FETCH LOGIC
     async def get_feed():
-        # A. Try X (Cookies)
         try:
             if os.path.exists("cookies.json"):
                 client = Client("en-US")
@@ -288,11 +348,9 @@ with col_side:
                 return await client.search_tweet(f"${ticker} filter:verified", "Latest", count=10)
         except: pass
         
-        # B. Try Stocktwits (Real Humans)
         st_data = fetch_stocktwits(ticker)
         if st_data: return st_data
         
-        # C. Try Yahoo (Guaranteed)
         return fetch_yahoo_news(ticker)
 
     # EXECUTE
@@ -302,7 +360,6 @@ with col_side:
         feed_data = loop.run_until_complete(get_feed())
         
         for item in feed_data:
-            # Normalize Data
             if isinstance(item, dict):
                 name = item['user']['name']
                 handle = item['user']['screen_name']
@@ -320,7 +377,7 @@ with col_side:
             <div class="tweet-card">
                 <div class="tweet-header">
                     <div class="avatar">{avatar_html}</div>
-                    <div style="margin-left:10px;">
+                    <div style="margin-left:5px;">
                         <div class="name-row">
                             <div class="name">{name}</div>
                             <div class="verified">☑</div>
